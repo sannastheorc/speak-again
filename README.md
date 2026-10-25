@@ -7,6 +7,7 @@ encourages gently, coaches tongue and lip placement, and can show a camera mirro
 
 - Why it's built this way: [docs/RESEARCH.md](docs/RESEARCH.md)
 - How it's built: [docs/DESIGN.md](docs/DESIGN.md)
+- Installing on the tablet: [docs/TABLET-SETUP.md](docs/TABLET-SETUP.md)
 
 ## Status (2026-10-25)
 
