@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- SEEDSED — index.html: app shell for Speak Again. Loads the speech engine script and the app module. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Speak Again</title>
+  <meta name="description" content="Offline speech practice for rebuilding speech after a stroke.">
+  <meta name="theme-color" content="#1D5CBA">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Speak Again">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <main id="app" class="wrap" aria-live="polite"></main>
+  <video id="mirror" class="mirror" playsinline muted hidden></video>
+  <script src="vendor/vosk.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

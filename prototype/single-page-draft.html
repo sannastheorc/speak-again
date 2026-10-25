@@ -1,0 +1,496 @@
+<title>Speak Again</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+SEEDSED — Speak Again: aphasia home practice app.
+Purpose: guided word-finding, repetition, automatic-speech and category-naming practice with a cueing hierarchy and spoken models.
+Boundaries: practice aid only, not diagnosis or therapy; no microphone (self-rated attempts); progress lives only in this browser (localStorage).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@400;500;600&display=swap">
+<style>
+/* Layout: one calm column of large practice cards; one task on screen at a time, big one-handed targets. */
+:root {
+  --bg: #EDF1F4; --surface: #FFFFFF; --ink: #14222C; --muted: #4A5D6B; --line: #C9D4DC;
+  --accent: #1D5CBA; --accent-ink: #FFFFFF; --accent-soft: #DCE7F7;
+  --own: #1C7349; --help: #A9600A; --not: #62548A;
+  --display: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
+  --scale: 1;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F161C; --surface: #17212A; --ink: #E4ECF1; --muted: #9BADBA; --line: #2B3945;
+  --accent: #74A6F2; --accent-ink: #0A1520; --accent-soft: #1C2E47;
+  --own: #55C28E; --help: #E6A54C; --not: #AE9BDB; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0F161C; --surface: #17212A; --ink: #E4ECF1; --muted: #9BADBA; --line: #2B3945;
+  --accent: #74A6F2; --accent-ink: #0A1520; --accent-soft: #1C2E47;
+  --own: #55C28E; --help: #E6A54C; --not: #AE9BDB; color-scheme: dark }
+:root.larger { --scale: 1.18; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: calc(19px * var(--scale)); line-height: 1.5; }
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 1.5em; }
+h2 { font-size: 1.3em; }
+h3 { font-size: 1.05em; font-weight: 500; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.eyebrow { font-family: var(--display); font-size: .72em; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+
+button { font: inherit; color: inherit; cursor: pointer; border-radius: 14px; min-height: 56px; padding: 10px 18px;
+  border: 2px solid var(--line); background: var(--surface); }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+button.quiet { background: transparent; border-color: transparent; color: var(--muted); min-height: 48px; padding: 8px 12px; }
+button.quiet:hover { color: var(--ink); }
+button:disabled { opacity: .45; cursor: default; }
+
+/* Home */
+.week { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 20px; }
+.dots { display: flex; gap: 10px; }
+.dot { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: .7em; color: var(--muted); font-family: var(--display); }
+.dot i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: block; }
+.dot.on i { background: var(--own); border-color: var(--own); }
+.dot.today span { color: var(--ink); font-weight: 600; }
+.exlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.ex { text-align: left; display: flex; gap: 14px; align-items: flex-start; padding: 18px; border-radius: 18px; min-height: 0; }
+.ex:hover { border-color: var(--accent); }
+.ex .glyph { flex: none; width: 52px; height: 52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center; font-family: var(--display); font-weight: 600; font-size: 1.1em; }
+.ex div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ex p { font-size: .88em; color: var(--muted); }
+.note { font-size: .82em; color: var(--muted); max-width: 62ch; }
+
+/* Practice */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.progress { flex: 1; height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+.count { font-family: var(--display); font-variant-numeric: tabular-nums; color: var(--muted); font-size: .9em; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 28px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.pic { font-size: calc(7.5rem * var(--scale)); line-height: 1.1; user-select: none; }
+.phrase { font-family: var(--display); font-weight: 500; font-size: 1.9em; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+.blank { display: inline-block; min-width: 3.2em; border-bottom: 4px solid var(--accent); }
+.instruction { font-size: 1.05em; color: var(--muted); }
+.cues { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.cue { text-align: left; background: var(--accent-soft); border-radius: 14px; padding: 12px 16px; display: flex; gap: 12px; align-items: baseline; }
+.cue b { font-family: var(--display); font-weight: 500; font-size: .75em; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); flex: none; width: 5.5em; }
+.cue span { min-width: 0; overflow-wrap: anywhere; }
+.letters { font-family: var(--display); font-size: 1.4em; letter-spacing: .25em; }
+.answer { font-family: var(--display); font-size: 2.2em; font-weight: 600; color: var(--accent); overflow-wrap: anywhere; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.row > button { flex: 1 1 180px; }
+.rate { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.rate button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; font-weight: 700; }
+.rate button small { font-weight: 400; font-size: .75em; color: var(--muted); }
+.rate .own { border-color: var(--own); } .rate .own svg { color: var(--own); }
+.rate .help { border-color: var(--help); } .rate .help svg { color: var(--help); }
+.rate .not { border-color: var(--not); } .rate .not svg { color: var(--not); }
+@media (max-width: 460px) { .rate { grid-template-columns: 1fr; } .rate button { flex-direction: row; justify-content: center; gap: 10px; } .rate button small { display: none; } }
+
+/* Categories */
+.timer { font-family: var(--display); font-size: 3.4em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tally { width: 168px; height: 168px; border-radius: 50%; font-family: var(--display); font-size: 3em; font-weight: 600;
+  background: var(--accent); color: var(--accent-ink); border: none; display: grid; place-items: center; }
+.tally small { display: block; font-size: .28em; font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.chips button { min-height: 52px; border-radius: 99px; }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* Summary */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.tile { border-radius: 16px; padding: 14px 8px; border: 2px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tile strong { font-family: var(--display); font-size: 2em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tile span { font-size: .8em; color: var(--muted); }
+.tile.own { border-color: var(--own); } .tile.own strong { color: var(--own); }
+.tile.help { border-color: var(--help); } .tile.help strong { color: var(--help); }
+.tile.not { border-color: var(--not); } .tile.not strong { color: var(--not); }
+.revisit { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.revisit span { background: var(--accent-soft); border-radius: 99px; padding: 4px 14px; }
+
+/* Settings + phrases */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.setting { display: flex; flex-direction: column; gap: 8px; }
+.seg { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg button { flex: 1 1 120px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.addrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.addrow input { flex: 1 1 220px; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; min-height: 56px; }
+.addrow input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.mine { display: flex; flex-direction: column; gap: 8px; }
+.mine li { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-block: 6px; }
+.mine li span { min-width: 0; overflow-wrap: anywhere; }
+.mine ul { list-style: none; margin: 0; padding: 0; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.pop { animation: pop .35s ease-out; }
+@keyframes pop { from { transform: scale(.94); opacity: .4; } to { transform: none; opacity: 1; } }
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+// ---------- Content ----------
+const NAMING = [
+  { pic: "🍎", word: "apple", sem: "A fruit. It can be red or green.", sent: "An ___ a day keeps the doctor away." },
+  { pic: "☕", word: "coffee", sem: "A hot drink. Many people have it in the morning.", sent: "I'd like a cup of ___, please." },
+  { pic: "🔑", word: "key", sem: "You use it to open a door.", sent: "I locked the door with my ___." },
+  { pic: "🐕", word: "dog", sem: "A pet that barks.", sent: "The ___ wagged its tail." },
+  { pic: "🍞", word: "bread", sem: "You make toast and sandwiches with it.", sent: "A loaf of ___." },
+  { pic: "⌚", word: "watch", sem: "You wear it on your wrist to tell the time.", sent: "Check the time on your ___." },
+  { pic: "🪑", word: "chair", sem: "You sit on it at the table.", sent: "Pull up a ___ and sit down." },
+  { pic: "🚗", word: "car", sem: "You drive it on the road.", sent: "Park the ___ in the garage." },
+  { pic: "📱", word: "phone", sem: "You use it to call people.", sent: "Answer the ___, it's ringing." },
+  { pic: "🌳", word: "tree", sem: "It is tall, with leaves and branches.", sent: "The bird sat in the ___." },
+  { pic: "🏠", word: "house", sem: "A place where people live.", sent: "Welcome to my ___." },
+  { pic: "👓", word: "glasses", sem: "You wear them to see better.", sent: "I can't read without my ___." },
+  { pic: "🍌", word: "banana", sem: "A long yellow fruit.", sent: "Peel the ___ before you eat it." },
+  { pic: "🛏️", word: "bed", sem: "You sleep in it at night.", sent: "It's late. Time to go to ___." },
+  { pic: "✏️", word: "pencil", sem: "You write or draw with it.", sent: "Sharpen your ___." },
+  { pic: "🐟", word: "fish", sem: "It lives and swims in water.", sent: "The ___ swam in the pond." },
+  { pic: "🥄", word: "spoon", sem: "You eat soup with it.", sent: "Stir your tea with a ___." },
+  { pic: "👟", word: "shoe", sem: "You wear it on your foot.", sent: "Tie the laces on your ___." },
+  { pic: "☀️", word: "sun", sem: "It shines in the sky during the day.", sent: "Wear a hat in the hot ___." },
+  { pic: "🐈", word: "cat", sem: "A pet that says meow.", sent: "The ___ chased the mouse." },
+  { pic: "🍰", word: "cake", sem: "A sweet food for birthdays.", sent: "Blow out the candles on the ___." },
+  { pic: "📖", word: "book", sem: "It has pages. You read it.", sent: "I'm reading a good ___." },
+  { pic: "🌂", word: "umbrella", sem: "It keeps you dry in the rain.", sent: "It's raining. Take an ___." },
+  { pic: "🥛", word: "milk", sem: "A white drink. It comes from cows.", sent: "Pour some ___ on your cereal." }
+];
+
+const COMPLETE = [
+  ["Salt and", "pepper"], ["Bread and", "butter"], ["Knife and", "fork"], ["Fish and", "chips"],
+  ["Up and", "down"], ["Black and", "white"], ["Night and", "day"], ["Ladies and", "gentlemen"],
+  ["Rock and", "roll"], ["Bacon and", "eggs"], ["Happy birthday to", "you"], ["Once upon a", "time"],
+  ["Monday, Tuesday,", "Wednesday"], ["One, two,", "three"], ["Ready, set,", "go"], ["Thank you very", "much"],
+  ["Hot and", "cold"], ["Cup and", "saucer"], ["Twinkle, twinkle, little", "star"], ["Hide and", "seek"]
+];
+
+const REPEAT = {
+  words:     { label: "Single words", items: ["water", "hello", "yes", "no", "thank you", "tea", "help", "today", "please", "goodbye"] },
+  pairs:     { label: "Two words", items: ["Good morning", "Hot tea", "Come in", "Sit down", "Big dog", "Red car", "Thank you", "Go home", "Not now", "Me too"] },
+  phrases:   { label: "Short phrases", items: ["I am hungry", "Turn it off", "Open the door", "Where are you?", "See you soon", "I need a drink", "It is cold", "Let's go out", "Call my son", "That's very nice"] },
+  sentences: { label: "Sentences", items: ["Can you pass me the salt?", "I would like a cup of tea.", "The weather is nice today.", "I'm going to the shop later.", "Please speak a little slower.", "What time is the appointment?", "I watched a good film last night.", "Could you open the window, please?", "My grandson is coming to visit.", "Let's have dinner at six o'clock."] }
+};
+
+const PHRASES = [
+  "I have aphasia. I know what I want to say.", "Please give me a minute.", "Can you say that again, slowly?",
+  "I need help, please.", "Yes, that's right.", "No, that's not what I mean.", "I would like a coffee, please.",
+  "How are you today?", "Where is the bathroom?", "See you tomorrow.", "I'm tired. I want to rest.", "Thank you for waiting."
+];
+
+const CATEGORIES = [
+  { name: "Fruits", eg: "apple, pear" }, { name: "Animals", eg: "dog, horse" }, { name: "Things in a kitchen", eg: "kettle, plate" },
+  { name: "Clothes", eg: "shirt, sock" }, { name: "Colors", eg: "blue, green" }, { name: "Body parts", eg: "hand, nose" },
+  { name: "Things in a supermarket", eg: "milk, soap" }, { name: "People in your family", eg: "first names" },
+  { name: "Things that are hot", eg: "fire, soup" }, { name: "Jobs", eg: "nurse, builder" }
+];
+
+const EXERCISES = {
+  naming:   { title: "Name the picture", desc: "Find the word for everyday things. Hints come one at a time.", glyph: "Aa" },
+  complete: { title: "Finish the phrase", desc: "Familiar pairs and sayings. The ending often comes on its own.", glyph: "…" },
+  repeat:   { title: "Listen and repeat", desc: "Hear it, then say it. Start with words, build to sentences.", glyph: "↻" },
+  phrases:  { title: "Everyday phrases", desc: "Practise useful things to say, including your own phrases.", glyph: "“ ”" },
+  category: { title: "Name a category", desc: "Say as many as you can in one minute. Tap for each one.", glyph: "60" }
+};
+const ROUND = 10;
+
+// ---------- Storage (this browser only) ----------
+const KEY = "speak-again-v1";
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+const store = Object.assign({ history: [], missed: {}, mine: [], settings: { rate: 0.75, larger: false, autoplay: true } }, load());
+store.settings = Object.assign({ rate: 0.75, larger: false, autoplay: true }, store.settings);
+
+// ---------- Speech ----------
+let voice = null;
+function pickVoice() {
+  try {
+    const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    voice = vs.find(v => v.localService && /natural|google|samantha|daniel|serena/i.test(v.name)) || vs.find(v => v.localService) || vs[0] || null;
+  } catch (e) { voice = null; }
+}
+const canSpeak = "speechSynthesis" in window;
+if (canSpeak) { pickVoice(); try { speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {} }
+function speak(text, rate) {
+  if (!canSpeak) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = rate || store.settings.rate;
+    if (voice) u.voice = voice;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ---------- Helpers ----------
+const $app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const dayKey = d => { const x = new Date(d); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+const letterHint = w => w.split(" ").map(part => part[0] + " " + Array(part.length - 1).fill("_").join(" ")).join("   ");
+const ICON = {
+  own: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>',
+  help: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16"/><path d="M4 12a8 8 0 0 1 16 0" opacity=".45"/></svg>',
+  not: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg>',
+  speaker: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-4px;margin-right:6px"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>'
+};
+
+// ---------- State ----------
+let S = { view: "home" };
+let timerId = null;
+
+function go(view, extra) { if (timerId) { clearInterval(timerId); timerId = null; } if (canSpeak) try { speechSynthesis.cancel(); } catch (e) {} S = Object.assign({ view }, extra || {}); render(); window.scrollTo(0, 0); }
+
+function buildItems(ex, level) {
+  const missedFirst = (list, keyOf) => {
+    const m = store.missed[ex] || {};
+    const sorted = shuffle(list).sort((a, b) => (m[keyOf(b)] || 0) - (m[keyOf(a)] || 0));
+    return sorted.slice(0, ROUND);
+  };
+  if (ex === "naming") return missedFirst(NAMING, i => i.word).map(i => ({
+    key: i.word, answer: i.word, pic: i.pic,
+    hints: [
+      { label: "Meaning", html: esc(i.sem), say: i.sem },
+      { label: "Sentence", html: esc(i.sent).replace("___", '<span class="blank"></span>'), say: i.sent.replace("___", "…") },
+      { label: "Letters", html: '<span class="letters">' + esc(letterHint(i.word)) + "</span>", say: null },
+      { label: "Word", html: '<span class="answer">' + esc(i.word) + "</span>", say: i.word, final: true }
+    ]
+  }));
+  if (ex === "complete") return missedFirst(COMPLETE, i => i[1]).map(([start, end]) => ({
+    key: end, answer: end, start,
+    hints: [
+      { label: "Letters", html: '<span class="letters">' + esc(letterHint(end)) + "</span>", say: null },
+      { label: "Ending", html: '<span class="answer">' + esc(end) + "</span>", say: start + " " + end, final: true }
+    ]
+  }));
+  if (ex === "repeat") return shuffle(REPEAT[level].items).slice(0, ROUND).map(t => ({ key: t, text: t }));
+  if (ex === "phrases") return shuffle(store.mine.concat(PHRASES)).slice(0, ROUND).map(t => ({ key: t, text: t }));
+  return [];
+}
+
+function startRound(ex, level) {
+  const items = buildItems(ex, level);
+  go("practice", { ex, level, items, idx: 0, cue: 0, results: [], revealed: false });
+  autoSay();
+}
+function autoSay() {
+  if (!store.settings.autoplay) return;
+  const it = S.items && S.items[S.idx]; if (!it) return;
+  if (S.ex === "repeat" || S.ex === "phrases") setTimeout(() => speak(it.text), 250);
+  if (S.ex === "complete") setTimeout(() => speak(it.start + " …"), 250);
+}
+
+function rate(result) {
+  const it = S.items[S.idx];
+  S.results.push({ key: it.key, result, cues: S.cue });
+  const m = store.missed[S.ex] = store.missed[S.ex] || {};
+  if (result === "not") m[it.key] = (m[it.key] || 0) + 1;
+  else if (result === "own" && m[it.key]) { m[it.key] = Math.max(0, m[it.key] - 1); if (!m[it.key]) delete m[it.key]; }
+  save();
+  if (S.idx + 1 >= S.items.length) return finish();
+  S.idx++; S.cue = 0; S.revealed = false; render(); autoSay();
+}
+
+function finish() {
+  const c = { own: 0, help: 0, not: 0 };
+  S.results.forEach(r => c[r.result]++);
+  store.history.push({ t: Date.now(), ex: S.ex, level: S.level || null, ...c });
+  store.history = store.history.slice(-400); save();
+  go("summary", { ex: S.ex, level: S.level, counts: c, results: S.results });
+}
+
+// ---------- Views ----------
+function header(back) {
+  return '<header><div class="brand">' +
+    '<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="var(--accent)"/><path d="M11 14h18a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-8l-6 5v-5h-4a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3z" fill="var(--accent-ink)"/></svg>' +
+    '<h1>Speak Again</h1></div>' +
+    (back ? '<button class="quiet" data-act="home">← Back to menu</button>' : '<button class="quiet" data-act="settings">Settings</button>') +
+    "</header>";
+}
+
+function weekStrip() {
+  const days = new Set(store.history.map(h => dayKey(h.t)));
+  const out = []; const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let n = 0;
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const on = days.has(dayKey(d)); if (on) n++;
+    out.push('<div class="dot' + (on ? " on" : "") + (i === 0 ? " today" : "") + '"><i></i><span>' + names[d.getDay()] + "</span></div>");
+  }
+  const todayRounds = store.history.filter(h => dayKey(h.t) === dayKey(Date.now())).length;
+  return '<section class="week" aria-label="Practice this week"><div><h3>' +
+    (todayRounds ? "You've practised " + todayRounds + (todayRounds === 1 ? " round" : " rounds") + " today" : "Ready when you are") +
+    '</h3><p class="muted">' + n + " of the last 7 days</p></div><div class=\"dots\">" + out.join("") + "</div></section>";
+}
+
+function viewHome() {
+  const cards = Object.entries(EXERCISES).map(([k, e]) =>
+    '<button class="ex" data-act="pick" data-ex="' + k + '"><span class="glyph" aria-hidden="true">' + e.glyph + '</span><div><h3>' + e.title + "</h3><p>" + e.desc + "</p></div></button>").join("");
+  return header(false) + weekStrip() +
+    '<section style="display:flex;flex-direction:column;gap:12px"><p class="eyebrow">Choose a practice</p><div class="exlist">' + cards + "</div></section>" +
+    '<p class="note">Speak Again is a practice aid for people living with aphasia, to use alongside speech and language therapy. Say each answer out loud, then tap how it went. Your progress is saved only in this browser.' +
+    (canSpeak ? "" : " This browser can't read words aloud, so the spoken examples are shown as text.") + "</p>";
+}
+
+function viewPickLevel() {
+  const btns = Object.entries(REPEAT).map(([k, v], i) =>
+    '<button class="ex" data-act="start" data-ex="repeat" data-level="' + k + '"><span class="glyph" aria-hidden="true">' + (i + 1) + '</span><div><h3>' + v.label + "</h3><p>" + esc(v.items.slice(0, 2).join(" · ")) + "</p></div></button>").join("");
+  return header(true) + '<h2>Listen and repeat</h2><p class="muted">Pick a level. Move up when most feel easy.</p><div class="exlist">' + btns + "</div>";
+}
+
+function viewCategoryPick() {
+  const btns = CATEGORIES.map((c, i) => '<button class="ex" data-act="cat" data-i="' + i + '"><div><h3>' + esc(c.name) + "</h3><p>For example: " + esc(c.eg) + "</p></div></button>").join("");
+  return header(true) + '<h2>Name a category</h2><p class="muted">You get one minute. Say each one out loud and tap the big button. No need to be fast.</p><div class="exlist">' + btns + "</div>";
+}
+
+function bar() {
+  const pct = Math.round((S.idx / S.items.length) * 100);
+  return '<div class="bar"><div class="progress" role="progressbar" aria-valuenow="' + S.idx + '" aria-valuemax="' + S.items.length + '"><i style="width:' + pct + '%"></i></div><span class="count">' + (S.idx + 1) + " of " + S.items.length + "</span></div>";
+}
+
+function rateRow(labels) {
+  return '<div class="rate">' +
+    '<button class="own" data-act="rate" data-r="own">' + ICON.own + labels[0] + "<small>" + labels[3] + "</small></button>" +
+    '<button class="help" data-act="rate" data-r="help">' + ICON.help + labels[1] + "<small>" + labels[4] + "</small></button>" +
+    '<button class="not" data-act="rate" data-r="not">' + ICON.not + labels[2] + "<small>" + labels[5] + "</small></button></div>";
+}
+
+function viewPractice() {
+  const it = S.items[S.idx];
+  if (S.ex === "repeat" || S.ex === "phrases") {
+    return header(true) + bar() + '<section class="card pop">' +
+      '<p class="eyebrow">' + (S.ex === "repeat" ? REPEAT[S.level].label : "Everyday phrase") + "</p>" +
+      '<p class="phrase">' + esc(it.text) + "</p>" +
+      '<p class="instruction">Listen, then say it out loud.</p>' +
+      '<div class="row"><button class="primary" data-act="say" data-text="' + esc(it.text) + '">' + ICON.speaker + "Hear it</button>" +
+      '<button data-act="slow" data-text="' + esc(it.text) + '">Hear it slowly</button></div>' +
+      rateRow(["I said it", "Some of it", "Not yet", "all the words", "part of it", "try another time"]) + "</section>";
+  }
+  const shown = it.hints.slice(0, S.cue);
+  const reachedWord = S.cue >= it.hints.length;
+  const top = S.ex === "naming"
+    ? '<div class="pic" role="img" aria-label="Picture to name">' + it.pic + '</div><p class="instruction">What is this called? Say it out loud.</p>'
+    : '<p class="phrase">' + esc(it.start) + ' <span class="blank"></span></p><p class="instruction">How does it end? Say the whole phrase.</p>' +
+      '<div class="row"><button data-act="say" data-text="' + esc(it.start) + ' …">' + ICON.speaker + "Hear the start</button></div>";
+  const cues = shown.length ? '<div class="cues">' + shown.map(h => '<div class="cue"><b>' + h.label + "</b><span>" + h.html + "</span></div>").join("") + "</div>" : "";
+  const next = it.hints[S.cue];
+  const hintBtn = reachedWord
+    ? '<button data-act="say" data-text="' + esc(it.hints[it.hints.length - 1].say) + '">' + ICON.speaker + "Hear it again</button>"
+    : '<button class="primary" data-act="hint">' + (next.final ? "Show me the word" : "Give me a hint") + "</button>";
+  const prompt = reachedWord ? '<p class="instruction">Say it with the voice, then say it once more on your own.</p>' : "";
+  return header(true) + bar() + '<section class="card pop">' + top + cues + prompt +
+    '<div class="row">' + hintBtn + "</div>" +
+    rateRow(["I said it", "With help", "Not yet", S.cue ? "after hints" : "on my own", "hint or repeat", "show me later"]) + "</section>";
+}
+
+function viewCategory() {
+  const c = CATEGORIES[S.cat];
+  const done = S.left <= 0;
+  const best = store.history.filter(h => h.ex === "category" && h.level === c.name).reduce((m, h) => Math.max(m, h.own || 0), 0);
+  return header(true) + '<section class="card">' +
+    '<p class="eyebrow">Name as many as you can</p><h2 class="phrase">' + esc(c.name) + "</h2>" +
+    '<div class="timer" aria-live="polite">' + (S.running || done ? "0:" + String(Math.max(0, S.left)).padStart(2, "0") : "1:00") + "</div>" +
+    (done
+      ? '<p class="answer">' + S.tally + (S.tally === 1 ? " item" : " items") + '</p><p class="muted">' + (best && S.tally > best ? "A new best for this category." : best ? "Your best here: " + best : "") + "</p>" +
+        '<div class="row"><button class="primary" data-act="cat" data-i="' + S.cat + '">Try again</button><button data-act="pick" data-ex="category">Another category</button></div>'
+      : S.running
+        ? '<button class="tally" data-act="tally" aria-label="Count one more">' + S.tally + "<small>tap for each one</small></button>" +
+          '<div class="row"><button class="quiet" data-act="untally"' + (S.tally ? "" : " disabled") + '>Undo last tap</button><button class="quiet" data-act="stopcat">Stop early</button></div>'
+        : '<p class="instruction">For example: ' + esc(c.eg) + '. Stuck? Picture the place where you find them.</p><div class="row"><button class="primary" data-act="gocat">Start the minute</button></div>') +
+    "</section>";
+}
+
+function viewSummary() {
+  const c = S.counts;
+  const notYet = S.results.filter(r => r.result === "not").map(r => r.key);
+  const total = c.own + c.help + c.not;
+  const msg = c.own >= total * 0.8 ? "That went well. Try a harder level, or a different practice." : c.not > total / 2 ? "Some were hard today. That's normal. Shorter, frequent practice helps most." : "Good work. Every try strengthens the path to the word.";
+  return header(true) + '<section class="card pop"><p class="eyebrow">Round complete</p><h2>' + EXERCISES[S.ex].title + "</h2>" +
+    '<div class="tiles"><div class="tile own"><strong>' + c.own + '</strong><span>On my own</span></div><div class="tile help"><strong>' + c.help + '</strong><span>With help</span></div><div class="tile not"><strong>' + c.not + "</strong><span>Not yet</span></div></div>" +
+    "<p>" + msg + "</p>" +
+    (notYet.length ? '<p class="muted">These come back first next time:</p><div class="revisit">' + notYet.map(k => "<span>" + esc(k) + "</span>").join("") + "</div>" : "") +
+    '<div class="row"><button class="primary" data-act="start" data-ex="' + S.ex + '"' + (S.level ? ' data-level="' + S.level + '"' : "") + '>Another round</button><button data-act="home">Back to menu</button></div></section>';
+}
+
+function viewSettings() {
+  const st = store.settings;
+  const seg = (act, opts, cur) => '<div class="seg">' + opts.map(([v, l]) => '<button data-act="' + act + '" data-v="' + v + '" aria-pressed="' + (String(cur) === String(v)) + '">' + l + "</button>").join("") + "</div>";
+  const mine = store.mine.length ? "<ul>" + store.mine.map((p, i) => "<li><span>" + esc(p) + '</span><button class="quiet" data-act="delmine" data-i="' + i + '">Remove</button></li>').join("") + "</ul>" : '<p class="muted">None yet. Add names of family, your address, or things you often want to say.</p>';
+  return header(true) + "<h2>Settings</h2>" +
+    '<section class="panel">' +
+    '<div class="setting"><h3>Speaking speed</h3>' + seg("rateset", [[0.6, "Very slow"], [0.75, "Slow"], [0.95, "Normal"]], st.rate) +
+    '<div><button data-act="say" data-text="This is how I will sound.">' + ICON.speaker + "Test the voice</button></div></div>" +
+    '<div class="setting"><h3>Read prompts aloud automatically</h3>' + seg("autoset", [[true, "Yes"], [false, "No, I'll tap"]], st.autoplay) + "</div>" +
+    '<div class="setting"><h3>Text size</h3>' + seg("sizeset", [[false, "Large"], [true, "Larger"]], st.larger) + "</div></section>" +
+    '<section class="panel mine"><h3>My own phrases</h3><p class="muted">These join the Everyday phrases practice.</p>' +
+    '<form class="addrow" id="addform"><label for="newphrase" class="eyebrow" style="flex-basis:100%">New phrase</label><input id="newphrase" maxlength="120" placeholder="My daughter\'s name is Anna."><button class="primary" type="submit">Add</button></form>' +
+    mine + "</section>" +
+    '<section class="panel"><h3>Progress</h3><p class="muted">' + store.history.length + ' rounds saved in this browser.</p><div class="seg">' +
+    (S.confirmReset ? '<button data-act="reset-yes" class="primary">Yes, clear my progress</button><button data-act="reset-no">Keep it</button>' : '<button data-act="reset">Clear progress</button>') + "</div></section>";
+}
+
+function render() {
+  document.documentElement.classList.toggle("larger", !!store.settings.larger);
+  const v = S.view;
+  $app.innerHTML = v === "home" ? viewHome() : v === "level" ? viewPickLevel() : v === "catpick" ? viewCategoryPick() :
+    v === "category" ? viewCategory() : v === "practice" ? viewPractice() : v === "summary" ? viewSummary() : viewSettings();
+}
+
+// ---------- Events ----------
+$app.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "home") go("home");
+  else if (a === "settings") go("settings");
+  else if (a === "pick") { const ex = b.dataset.ex; ex === "repeat" ? go("level") : ex === "category" ? go("catpick") : startRound(ex); }
+  else if (a === "start") startRound(b.dataset.ex, b.dataset.level);
+  else if (a === "say") speak(b.dataset.text);
+  else if (a === "slow") speak(b.dataset.text, Math.max(0.5, store.settings.rate - 0.2));
+  else if (a === "hint") {
+    const h = S.items[S.idx].hints[S.cue]; S.cue++; render();
+    if (h.say) speak(h.say);
+  }
+  else if (a === "rate") rate(b.dataset.r);
+  else if (a === "cat") go("category", { cat: +b.dataset.i, tally: 0, left: 60, running: false });
+  else if (a === "gocat") {
+    S.running = true; S.left = 60; render();
+    timerId = setInterval(() => { S.left--; if (S.left <= 0) endCategory(); else { const t = $app.querySelector(".timer"); if (t) t.textContent = "0:" + String(S.left).padStart(2, "0"); } }, 1000);
+  }
+  else if (a === "tally") { S.tally++; render(); }
+  else if (a === "untally") { S.tally = Math.max(0, S.tally - 1); render(); }
+  else if (a === "stopcat") endCategory();
+  else if (a === "rateset") { store.settings.rate = +b.dataset.v; save(); render(); speak("This is how I will sound."); }
+  else if (a === "autoset") { store.settings.autoplay = b.dataset.v === "true"; save(); render(); }
+  else if (a === "sizeset") { store.settings.larger = b.dataset.v === "true"; save(); render(); }
+  else if (a === "delmine") { store.mine.splice(+b.dataset.i, 1); save(); render(); }
+  else if (a === "reset") { S.confirmReset = true; render(); }
+  else if (a === "reset-no") { S.confirmReset = false; render(); }
+  else if (a === "reset-yes") { store.history = []; store.missed = {}; S.confirmReset = false; save(); render(); }
+});
+$app.addEventListener("submit", e => {
+  if (e.target.id !== "addform") return;
+  e.preventDefault();
+  const input = document.getElementById("newphrase");
+  const v = input.value.trim(); if (!v) return;
+  store.mine.push(v); save(); render();
+  const again = document.getElementById("newphrase"); if (again) again.focus();
+});
+function endCategory() {
+  if (timerId) { clearInterval(timerId); timerId = null; }
+  const c = CATEGORIES[S.cat];
+  store.history.push({ t: Date.now(), ex: "category", level: c.name, own: S.tally, help: 0, not: 0 });
+  save(); S.running = false; S.left = 0; render();
+  speak("Time's up. You named " + S.tally + ".");
+}
+
+render();
+</script>

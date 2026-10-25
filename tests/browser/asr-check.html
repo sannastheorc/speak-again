@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- SEEDSED — asr-check.html: browser check that the recognizer wrapper loads the model and
+     returns grammar-restricted results on a known recording. Dev only; not part of the app. -->
+<meta charset="utf-8">
+<title>ASR check</title>
+<pre id="out">running…</pre>
+<script src="../../app/vendor/vosk.js"></script>
+<script type="module">
+import { Recognizer } from "../../app/js/recognizer.js";
+const out = document.getElementById("out");
+const log = o => { out.textContent += "\n" + JSON.stringify(o); };
+
+function parseWav(buf) {
+  const v = new DataView(buf);
+  const sampleRate = v.getUint32(24, true);
+  let p = 12;
+  while (p < v.byteLength) {
+    const id = String.fromCharCode(v.getUint8(p), v.getUint8(p + 1), v.getUint8(p + 2), v.getUint8(p + 3));
+    const size = v.getUint32(p + 4, true);
+    if (id === "data") {
+      const n = size / 2, s = new Float32Array(n);
+      for (let i = 0; i < n; i++) s[i] = v.getInt16(p + 8 + i * 2, true) / 32768;
+      return { samples: s, sampleRate };
+    }
+    p += 8 + size;
+  }
+  throw new Error("no data chunk");
+}
+
+const results = {};
+try {
+  const t0 = performance.now();
+  const r = new Recognizer("../../app/model/model.tar.gz");
+  await r.load();
+  results.loadMs = Math.round(performance.now() - t0);
+  const wav = parseWav(await (await fetch("../fixtures/vosk-sample.wav")).arrayBuffer());
+  results.seconds = +(wav.samples.length / wav.sampleRate).toFixed(2);
+  const digits = ["one", "two", "three", "eight", "nine", "zero", "oh"];
+  let t1 = performance.now();
+  results.digits = (await r.recognize(wav, digits)).text;
+  results.digitsMs = Math.round(performance.now() - t1);
+  // Grammar without the spoken words: must come back as unknown, not forced to a listed word.
+  results.unrelated = (await r.recognize(wav, ["banana", "telephone"])).text;
+  // Two back-to-back jobs keep their own results.
+  const [a, b] = await Promise.all([r.recognize(wav, ["one"]), r.recognize(wav, ["zero"])]);
+  results.serial = [a.text, b.text];
+  results.ok = true;
+} catch (e) {
+  results.error = String(e && e.message || e);
+}
+window.ASR_RESULT = results;
+log(results);
+</script>

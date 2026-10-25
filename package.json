@@ -1,0 +1,12 @@
+{
+  "name": "speak-again",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SEEDSED — offline speech practice PWA for motor speech recovery after stroke",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "model": "./scripts/fetch-model.sh",
+    "serve": "python3 -m http.server 8642 --bind 127.0.0.1"
+  }
+}
