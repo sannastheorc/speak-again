@@ -11,10 +11,12 @@ encourages gently, coaches tongue and lip placement, and can show a camera mirro
 
 ## Status (2026-10-25)
 
-Candidate version 0.1.0. **Not yet tried on a real iPad, or with his voice.**
+Candidate version 0.2.0. **Not yet tried on a real iPad, or with his voice.**
+
+Version 0.2.0 adds the coach (gentle pushes), his name, and natural-voice selection.
 
 What has been verified, in Chromium on Linux:
-- 21 unit tests pass (`npm test`), including a check that every practice word is in the model's vocabulary.
+- 27 unit tests pass (`npm test`), including a check that every practice word is in the model's vocabulary.
 - In-browser: the model loads, a known recording is transcribed exactly, and unrelated words come back as unknown.
 - The practice flow runs end to end, with a recorded clip standing in for the microphone.
 - The cue ladder, helper override and break offer all work.

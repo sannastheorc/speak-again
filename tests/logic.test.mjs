@@ -177,3 +177,77 @@ test("session: offers a break after 3 missed words in a row, once per streak", (
   miss(); miss(); miss();
   assert.equal(s.shouldOfferBreak(), true, "a new streak after a success");
 });
+
+// ---- name
+import { withName } from "../app/js/feedback.js";
+import { loadSettings, saveSettings, cleanName, DEFAULTS } from "../app/js/settings.js";
+
+test("name: used in every other praise line, never required", () => {
+  assert.equal(withName("Great job!", "Dave", 0), "Great job, Dave!");
+  assert.equal(withName("Yes! That's it.", "Dave", 2), "Yes! That's it, Dave!");
+  assert.equal(withName("Great job!", "Dave", 1), "Great job!");
+  assert.equal(withName("Great job!", "", 0), "Great job!");
+  const f = feedback({ outcome: OUTCOMES.CORRECT, heard: "bee" }, { item: bee, n: 0, name: "Dave" });
+  assert.match(f.headline, /Dave!$/);
+  assert.equal(f.speak, f.headline);
+});
+
+test("name: cleaned, length-limited, and stored with settings; no account needed", () => {
+  assert.equal(cleanName("  dave   lee "), "dave lee");
+  assert.equal(cleanName("x".repeat(60)).length, 40);
+  const s = memoryStorage();
+  assert.deepEqual(loadSettings(s), DEFAULTS, "fresh device: defaults, name empty");
+  saveSettings(s, { ...DEFAULTS, name: "Dave", askedName: true });
+  assert.equal(loadSettings(s).name, "Dave");
+  s.setItem("speak-again/settings", JSON.stringify({ name: 42, askedName: "yes" }));
+  assert.deepEqual([loadSettings(s).name, loadSettings(s).askedName], ["", false], "bad values fall back");
+});
+
+// ---- voices
+import { rankVoices } from "../app/js/speech.js";
+
+test("voices: most natural offline English voice first; novelty and other languages hidden", () => {
+  const v = (name, lang, localService = true) => ({ name, lang, localService });
+  const ranked = rankVoices([
+    v("Fred", "en-US"), v("Samantha", "en-US"), v("Thomas", "fr-FR"), v("Google US English", "en-US", false),
+    v("Ava (Premium)", "en-US"), v("Daniel (Enhanced)", "en-GB"), v("Zarvox", "en-US")
+  ]).map(x => x.name);
+  assert.deepEqual(ranked, ["Ava (Premium)", "Daniel (Enhanced)", "Samantha", "Google US English"]);
+});
+
+// ---- coach
+import { COACH } from "../app/js/feedback.js";
+
+test("coach: a word said with a tip earns one 'just you' try, then moves on either way", () => {
+  for (const soloOk of [true, false]) {
+    const s = new Session(lips, new Progress(memoryStorage()), { length: 3, rng: seq() });
+    const first = s.current().item.id;
+    assert.equal(s.submit(false), "retry");
+    assert.equal(s.preview(true), "solo");
+    assert.equal(s.submit(true), "solo");
+    assert.deepEqual([s.current().item.id, s.current().step, s.current().solo], [first, 0, true]);
+    assert.equal(s.preview(soloOk), "next");
+    assert.equal(s.submit(soloOk), "next", "no ladder on the bonus try");
+    assert.equal(s.current().solo, false);
+    assert.deepEqual(s.summary(), { firstTry: 0, withHelp: 1, notYet: [], correct: 1, total: 1 }, "a missed bonus try is not a failure");
+  }
+});
+
+test("coach: streak counts words said in a row", () => {
+  const s = new Session(lips, new Progress(memoryStorage()), { length: 6, rng: seq() });
+  s.submit(true); s.submit(true);
+  assert.equal(s.successStreak(), 2);
+  s.submit(false); s.submit(false); s.submit(false);
+  assert.equal(s.successStreak(), 0);
+});
+
+test("coach: bonus-try feedback is warm both ways and stays gentle", () => {
+  const ctx = { item: bee, tipText: "Lips together.", n: 0, solo: true, name: "Stan" };
+  const won = feedback({ outcome: OUTCOMES.CORRECT, heard: "bee" }, ctx);
+  assert.match(won.headline, /own, Stan!$/);
+  const miss = feedback({ outcome: OUTCOMES.OTHER, heard: "pea" }, ctx);
+  assert.equal(miss.tone, "try");
+  assert.match(miss.detail, /keep going/);
+  const lines = [COACH.start("Stan"), COACH.soloNudge, COACH.soloPrompt, ...COACH.roll, COACH.nextLevel, COACH.goodbye("Stan"), miss.headline, miss.detail, miss.speak];
+  for (const l of lines) assert.ok(!/\b(wrong|incorrect|fail\w*|mistake|error|hurry|faster)\b/i.test(l), l);
+});

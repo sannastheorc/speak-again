@@ -14,6 +14,25 @@ SEEDSED. A one-page guide for the helper. Nothing here needs a computer.
 
 After this it works anywhere, with no internet.
 
+## Getting a natural voice (recommended, free)
+
+The app talks with the iPad's own voices. The best ones sound close to Siri and work offline,
+but iPad doesn't download them until you ask:
+
+1. On the iPad, open **Settings › Accessibility › Spoken Content › Voices › English**.
+2. Pick a voice marked **Premium** or **Enhanced** (for example Ava, Zoe, Evan or Nathan) and tap
+   the download button. Try a few with the play button and pick the warmest one for him.
+3. Open Speak Again › **Settings › Voice** and tap the new voice. "Most natural (automatic)" also picks
+   the best installed voice by itself.
+
+While you're in Settings, **Voice speed › Slow** often feels gentler.
+
+## His name
+
+The first time it opens, Speak Again asks for his first name. It's optional, and you can type it
+for him. It's used for greetings ("Hi, Stan!") and now and then in praise. You can change it under
+Settings › Name. There is no account and no password.
+
 ## Getting updates
 
 When a new version is published, the next time the app opens with internet it fetches the update in

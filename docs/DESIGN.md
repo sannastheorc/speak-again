@@ -25,6 +25,12 @@ SEEDSED. One owner per decision. Owners connect through the contracts below; `ap
 - **Gentleness:** no negative words (enforced by a test), misses read aloud as encouragement only,
   what the recognizer heard is hidden by default, each session opens with a known word, a break is
   offered after 3 missed words in a row, and the results screen never shows a zero score.
+- **Coach:** opens with "Let's get started, <name>"; a word said with a tip earns one bonus
+  "now just you" try (no model played) and the session moves on whatever happens; every 3rd word in
+  a row gets a "you're on a roll"; a completed stage offers "Next level" first; sessions end with
+  "Same time tomorrow?". No timers, no pressure words (enforced by tests).
+- **Personal touches:** optional first name (no account, no password); the most natural installed
+  voice is picked automatically (Premium > Enhanced > Siri > others, offline first) or chosen in Settings.
 - **Recognizer listen-list:** the target's accepted forms plus up to 8 nearby items from the same
   group, plus `[unk]`. A near miss is heard as a different word instead of being forced to the target.
 - **Stale results:** every async step carries an attempt id. A result that arrives after the screen

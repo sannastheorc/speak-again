@@ -2,6 +2,8 @@
 // Purpose: the ORDER and CUE LADDER of one practice session (Sound Production Treatment style):
 //          step 0 listen-and-say, step 1 placement tip + mirror, step 2 slow model; after a success
 //          the next item comes, after the last step the item is set aside and returns once later.
+//          Coach nudge: a success that needed a tip earns one bonus "now just you" try; whatever
+//          happens on that try, the session moves on (a gentle push, never a penalty).
 // Input:  stage, progress (for mastery), options { length, rng }.
 // Output: current() -> { item, step, index, total } | null; submit(ok) advances; summary().
 // Boundaries: no audio, no storage writes, no wording. Pure state machine, fully testable.
@@ -46,7 +48,7 @@ export class Session {
 
   current() {
     if (!this.queue.length) return null;
-    return { item: this.queue[0], step: this.step, index: this.done, total: this.total };
+    return { item: this.queue[0], step: this.step, solo: !!this.solo, index: this.done, total: this.total };
   }
 
   get finished() {
@@ -57,16 +59,28 @@ export class Session {
   // while a helper can still correct the verdict).
   preview(ok) {
     if (!this.current()) return "done";
+    if (this.solo) return this.queue.length > 1 ? "next" : "done";
+    if (ok && this.step > 0) return "solo";
     if (!ok && this.step + 1 < MAX_STEPS) return "retry";
     return this.queue.length > 1 ? "next" : "done";
   }
 
-  // Returns "next" (new item), "retry" (same item, next step) or "done".
+  // Returns "next" (new item), "retry" (same item, next step), "solo" (same item, one try
+  // without help) or "done".
   submit(ok) {
     const cur = this.current();
     if (!cur) return "done";
+    if (this.solo) {
+      this.results[this.results.length - 1].soloOk = !!ok;
+      return this.#advance();
+    }
     if (ok) {
       this.results.push({ itemId: cur.item.id, ok: true, step: this.step });
+      if (this.step > 0) {
+        this.solo = true;
+        this.step = 0;
+        return "solo";
+      }
       return this.#advance();
     }
     if (this.step + 1 < MAX_STEPS) {
@@ -81,6 +95,13 @@ export class Session {
       this.total++;
     }
     return this.#advance();
+  }
+
+  // Words said in a row, counting from the latest (for "you're on a roll").
+  successStreak() {
+    let streak = 0;
+    for (let i = this.results.length - 1; i >= 0 && this.results[i].ok; i--) streak++;
+    return streak;
   }
 
   // True when the last few words in a row didn't come; the UI then offers a rest or an easier
@@ -102,6 +123,7 @@ export class Session {
     this.queue.shift();
     this.done++;
     this.step = 0;
+    this.solo = false;
     return this.queue.length ? "next" : "done";
   }
 

@@ -7,14 +7,14 @@
 
 import { STAGES, TIPS, getStage, listenPhrases } from "./curriculum.js";
 import { assess, OUTCOMES } from "./assess.js";
-import { feedback, STEP_PROMPTS, BREAK_OFFER } from "./feedback.js";
+import { feedback, withName, STEP_PROMPTS, BREAK_OFFER, COACH } from "./feedback.js";
 import { Progress } from "./progress.js";
 import { Session } from "./session.js";
 import { Mic } from "./audio.js";
 import { Recognizer } from "./recognizer.js";
-import { speak, cancelSpeech, canSpeak } from "./speech.js";
+import { speak, cancelSpeech, canSpeak, listVoices, onVoicesChanged, setVoice, currentVoiceName } from "./speech.js";
 import { startMirror, stopMirror, mirrorOn } from "./mirror.js";
-import { loadSettings, saveSettings } from "./settings.js";
+import { loadSettings, saveSettings, cleanName } from "./settings.js";
 
 const MODEL_URL = "model/model.tar.gz";
 const MODEL_FLAG = "speak-again/model-ready";
@@ -23,11 +23,13 @@ const storage = (() => { try { localStorage.setItem("speak-again/probe", "1"); r
 const progress = new Progress(storage);
 let settings = loadSettings(storage);
 const mic = new Mic();
+setVoice(settings.voiceName);
+const VOICE_SAMPLE = "Hi. I'm here to practise with you. Take all the time you need.";
 const recognizer = new Recognizer(MODEL_URL);
 const $app = document.getElementById("app");
 const $mirror = document.getElementById("mirror");
 
-let screen = "home";
+let screen = settings.askedName ? "home" : "welcome";
 let P = null;           // practice state
 let summary = null;
 let attemptSeq = 0;
@@ -62,6 +64,16 @@ function header(right) {
     <h1>Speak Again</h1></div>${right}</header>`;
 }
 
+function viewWelcome() {
+  return header("") + `<section class="card"><h2>Welcome to Speak Again</h2>
+    <p>A little practice every day, at your own pace. There's no account and no password. Everything stays on this tablet.</p>
+    <form class="setting" id="name-form"><label for="name-input"><h3>What's your first name?</h3></label>
+      <p class="note">Optional. The app uses it to cheer you on. A helper can type it.</p>
+      <input id="name-input" class="text" maxlength="40" autocomplete="given-name" autocapitalize="words" placeholder="First name">
+      <div class="row"><button class="primary" type="submit">Continue</button><button type="button" data-act="skip-name">Skip</button></div>
+    </form></section>`;
+}
+
 function viewHome() {
   const ms = modelStatus();
   const rec = progress.recommendedStage(STAGES);
@@ -76,6 +88,7 @@ function viewHome() {
       ${st.complete ? '<span class="tick">✓ Done</span>' : ""}</button>`;
   }).join("");
   return header(`<button class="quiet" data-act="settings">Settings</button>`) +
+    (settings.name ? `<h2>Hi, ${esc(settings.name)}!</h2>` : "") +
     (updateReady ? `<div class="banner"><span>A new version is ready.</span><button data-act="update">Update now</button></div>` : "") +
     `<section class="card status ${ms.cls}"><div><span class="dotmark" aria-hidden="true"></span><div><h3>${ms.title}</h3><p class="muted">${ms.body}</p></div></div>${ms.action}</section>
     <button class="next" data-act="start" data-stage="${rec.id}">
@@ -103,7 +116,7 @@ function viewPractice() {
   if (P.phase === "feedback") {
     const f = P.fb;
     const next = P.verdict === null ? "" : P.session.preview(P.verdict);
-    const nextLabel = next === "retry" ? "Try again" : next === "done" ? "See how you did" : "Next";
+    const nextLabel = next === "retry" ? "Try again" : next === "solo" ? "Now just you" : next === "done" ? "See how you did" : "Next";
     const silent = P.result.outcome === OUTCOMES.SILENT;
     fb = `<section class="fb ${f.tone}" role="status"><h2>${esc(f.headline)}</h2><p>${esc(f.detail)}</p>
       <div class="row">
@@ -130,7 +143,7 @@ function viewPractice() {
     <section class="card target">
       <p class="eyebrow">${esc(item.group || stage.title)}</p>
       <div class="word${long ? " long" : ""}">${esc(item.text)}</div>
-      <p class="prompt">${voice ? `Hold the sound for ${item.holdSec} seconds.` : esc(STEP_PROMPTS[step])}</p>
+      <p class="prompt">${voice ? `Hold the sound for ${item.holdSec} seconds.` : esc(cur.solo ? COACH.soloPrompt : STEP_PROMPTS[step])}</p>
       ${voice ? `<div class="hold" id="hold" aria-hidden="true"><i></i></div>` : ""}
       ${showTip ? `<div class="tip"><p><b>Tip:</b> ${esc(tip)}</p><div id="mirror-slot"></div>
         <button class="quiet" data-act="mirror">${mirrorOn() ? "Hide mirror" : "Show my mouth (mirror)"}</button></div>`
@@ -148,13 +161,26 @@ function viewSummary() {
   const stage = summary.stage;
   const names = s.notYet.map(id => stage.items.find(i => i.id === id)?.text || id);
   const st = progress.stageStats(stage);
+  const nextUp = st.complete ? STAGES[STAGES.indexOf(stage) + 1] : null;
   const msg = s.total && s.correct / s.total >= 0.8 ? "That was a strong session." : s.correct ? "Good work. Every try builds the pathway." : "You kept trying. That's how progress happens.";
   return header("") + `<section class="card"><p class="eyebrow">${esc(stage.title)}</p><h2>${msg}</h2>
     ${s.correct ? `<div class="tiles"><div class="tile g"><strong>${s.firstTry}</strong><span>Said first try</span></div><div class="tile h"><strong>${s.withHelp}</strong><span>Said with a tip</span></div><div class="tile"><strong>${s.total}</strong><span>Words practised</span></div></div>`
       : `<p>You practised ${s.total} ${s.total === 1 ? "word" : "words"}. Every try counts.</p>`}
     ${names.length ? `<p class="muted">We'll keep practising these together:</p><div class="chips">${names.map(t => `<span>${esc(t)}</span>`).join("")}</div>` : ""}
     ${st.mastered ? `<p class="muted">${st.mastered} of ${st.total} learned in this stage.${st.complete ? " Stage complete! The next one is ready." : ""}</p>` : ""}
-    <div class="row"><button class="primary" data-act="start" data-stage="${stage.id}">Practise again</button><button data-act="home">Home</button></div></section>`;
+    ${nextUp ? `<p><b>${esc(COACH.nextLevel)}</b></p>` : ""}
+    <div class="row">${nextUp ? `<button class="primary" data-act="start" data-stage="${nextUp.id}">Next level: ${esc(nextUp.title)}</button><button data-act="start" data-stage="${stage.id}">Practise this again</button>`
+      : `<button class="primary" data-act="start" data-stage="${stage.id}">Practise again</button>`}<button data-act="home">Home</button></div></section>`;
+}
+
+function viewVoices() {
+  const voices = listVoices().slice(0, 8);
+  if (!voices.length) return "";
+  const active = currentVoiceName();
+  const btn = (name, label, extra = "") => `<button data-act="voice" data-name="${esc(name)}" aria-pressed="${name === settings.voiceName}">${esc(label)}${extra}</button>`;
+  return `<div class="setting"><h3>Voice</h3>
+    <p class="note">Tap one to hear it. Now using: ${esc(active)}. For a more natural voice, see "Getting a natural voice" in the tablet guide.</p>
+    <div class="seg">${btn("", "Most natural (automatic)")}${voices.map(v => btn(v.name, v.name, v.offline ? "" : " · needs internet")).join("")}</div></div>`;
 }
 
 function viewSettings() {
@@ -162,6 +188,9 @@ function viewSettings() {
   const ms = modelStatus();
   return header(`<button class="quiet" data-act="home">← Home</button>`) + `<h2>Settings</h2>
     <section class="card">
+      <form class="setting" id="name-form"><label for="name-input"><h3>Name</h3></label>
+        <div class="row"><input id="name-input" class="text" maxlength="40" autocomplete="given-name" autocapitalize="words" placeholder="First name (optional)" value="${esc(settings.name)}"><button type="submit">Save name</button></div></form>
+      ${viewVoices()}
       <div class="setting"><h3>Voice speed</h3>${seg("rate", [[0.6, "Slow"], [0.8, "Medium"], [1, "Normal"]])}<div><button data-act="test-voice">🔊 Test the voice</button></div></div>
       <div class="setting"><h3>Words per session</h3>${seg("length", [[8, "8"], [12, "12"], [20, "20"]])}</div>
       <div class="setting"><h3>Read encouragement aloud</h3>${seg("speakFeedback", [[true, "Yes"], [false, "No"]])}</div>
@@ -177,7 +206,7 @@ function viewSettings() {
 
 function render() {
   if (screen !== "practice" && mirrorOn()) stopMirror($mirror);
-  $app.innerHTML = screen === "practice" ? viewPractice() : screen === "summary" ? viewSummary() : screen === "settings" ? viewSettings() : viewHome();
+  $app.innerHTML = screen === "practice" ? viewPractice() : screen === "summary" ? viewSummary() : screen === "settings" ? viewSettings() : screen === "welcome" ? viewWelcome() : viewHome();
   const slot = document.getElementById("mirror-slot");
   if (slot && mirrorOn()) { slot.appendChild($mirror); $mirror.hidden = false; }
   else { $mirror.hidden = true; document.body.appendChild($mirror); }
@@ -197,7 +226,7 @@ function go(next) {
 function startPractice(stageId) {
   mic.unlock(); // inside the tap: lets iOS start audio later
   const stage = getStage(stageId);
-  P = { stage, session: new Session(stage, progress, { length: settings.length }), phase: "ready", showTip: false, fb: null, result: null, verdict: null, recording: null, error: null };
+  P = { stage, session: new Session(stage, progress, { length: settings.length }), phase: "ready", showTip: false, fb: null, result: null, verdict: null, recording: null, error: null, greet: true };
   go("practice");
   presentStep();
 }
@@ -209,6 +238,9 @@ async function presentStep() {
   if (step >= 1 && settings.autoMirror && !mirrorOn()) await startMirror($mirror);
   if (id !== attemptSeq) return;
   render();
+  if (P.greet) { P.greet = false; await speak(COACH.start(settings.name), { rate: settings.rate }); }
+  if (id !== attemptSeq) return;
+  if (P.session.current().solo) return speak(COACH.soloPrompt, { rate: settings.rate });
   if (step === 1) await speak(TIPS[item.tip], { rate: settings.rate });
   if (id !== attemptSeq) return;
   await speak(item.say, { rate: step === 2 ? Math.max(0.5, settings.rate * 0.7) : settings.rate });
@@ -268,27 +300,45 @@ async function onMic() {
 }
 
 function showResult(result) {
-  const { item, step } = P.session.current();
+  const { item, step, solo } = P.session.current();
   const ok = result.outcome === OUTCOMES.CORRECT;
   const silent = result.outcome === OUTCOMES.SILENT;
   P.result = result;
   P.verdict = silent ? null : ok;
   if (!silent) progress.recordAttempt({ stageId: P.stage.id, itemId: item.id, ok, step, by: P.stage.kind === "voice" ? "meter" : "asr" });
   const lastTry = !ok && P.session.preview(false) !== "retry";
-  P.fb = feedback(result, { item, tipText: TIPS[item.tip], step, lastTry, showHeard: settings.showHeard, n: n++ });
+  P.fb = feedback(result, { item, tipText: TIPS[item.tip], step, solo, lastTry, showHeard: settings.showHeard, name: settings.name, n: n++ });
+  if (ok && !solo) coachAfterSuccess();
   P.phase = "feedback";
   render();
   if (settings.speakFeedback) speak(P.fb.speak, { rate: Math.min(1, settings.rate + 0.1) });
 }
 
+// Gentle pushes after a success: ask for a solo try if a tip was needed; cheer a streak.
+function coachAfterSuccess() {
+  const f = { ...P.fb };
+  if (P.session.preview(true) === "solo") {
+    f.detail = `${f.detail} ${COACH.soloNudge}`;
+    f.speak = `${f.speak} ${COACH.soloNudge}`;
+  } else {
+    const streak = P.session.successStreak() + 1;
+    if (streak >= 3 && streak % 3 === 0) {
+      const line = COACH.roll[(streak / 3 - 1) % COACH.roll.length];
+      f.detail = `${line} ${f.detail}`;
+      f.speak = `${f.speak} ${line}`;
+    }
+  }
+  P.fb = f;
+}
+
 function selfJudged(ok) {
-  const { item, step } = P.session.current();
+  const { item, step, solo } = P.session.current();
   progress.recordAttempt({ stageId: P.stage.id, itemId: item.id, ok, step, by: "self" });
   P.result = { outcome: ok ? OUTCOMES.CORRECT : OUTCOMES.UNCLEAR, heard: "" };
   P.verdict = ok;
   const lastTry = !ok && P.session.preview(false) !== "retry";
-  P.fb = ok ? { tone: "great", headline: "Great job!", detail: "Keep that feeling for the next one.", speak: "Great job!" }
-    : feedback(P.result, { item, tipText: TIPS[item.tip], step, lastTry, showHeard: settings.showHeard, n: n++ });
+  P.fb = feedback(P.result, { item, tipText: TIPS[item.tip], step, solo, lastTry, showHeard: settings.showHeard, name: settings.name, n: n++ });
+  if (ok && !solo) coachAfterSuccess();
   P.phase = "feedback";
   render();
   if (settings.speakFeedback) speak(P.fb.speak, { rate: settings.rate });
@@ -298,7 +348,9 @@ function override() {
   const { item } = P.session.current();
   progress.overrideLast(P.stage.id, item.id, true);
   P.verdict = true;
-  P.fb = { tone: "great", headline: "Great job!", detail: "Your helper heard it. Well done.", speak: "Great job!" };
+  const praise = withName("Great job!", settings.name, n++);
+  P.fb = { tone: "great", headline: praise, detail: "Your helper heard it. Well done.", speak: praise };
+  if (!P.session.current().solo) coachAfterSuccess();
   render();
   if (settings.speakFeedback) speak(P.fb.speak, { rate: settings.rate });
 }
@@ -322,7 +374,7 @@ function finishSession() {
   summary = { stage: P.stage, result };
   stopMirror($mirror);
   go("summary");
-  if (settings.speakFeedback) speak(result.correct ? "Well done today." : "Thank you for practising.", { rate: settings.rate });
+  if (settings.speakFeedback) speak(result.correct ? COACH.goodbye(settings.name) : withName("Thank you for practising. Same time tomorrow?", settings.name), { rate: settings.rate });
 }
 
 // ---------------------------------------------------------------- events
@@ -364,11 +416,34 @@ $app.addEventListener("click", async e => {
       if (b.dataset.key === "rate") speak("This is how I will sound.", { rate: settings.rate });
       return;
     }
-    case "test-voice": return speak("This is how I will sound.", { rate: settings.rate });
+    case "skip-name":
+      settings = { ...settings, askedName: true };
+      saveSettings(storage, settings);
+      return go("home");
+    case "voice":
+      settings = { ...settings, voiceName: b.dataset.name };
+      saveSettings(storage, settings);
+      setVoice(settings.voiceName);
+      render();
+      return speak(VOICE_SAMPLE, { rate: settings.rate });
+    case "test-voice": return speak(VOICE_SAMPLE, { rate: settings.rate });
     case "reset": confirmReset = true; return render();
     case "reset-no": confirmReset = false; return render();
     case "reset-yes": progress.reset(); confirmReset = false; return render();
   }
+});
+
+$app.addEventListener("submit", e => {
+  if (e.target.id !== "name-form") return;
+  e.preventDefault();
+  const name = cleanName(document.getElementById("name-input").value);
+  const first = screen === "welcome";
+  settings = { ...settings, name, askedName: true };
+  saveSettings(storage, settings);
+  if (first) {
+    go("home");
+    if (name) speak(`Hi, ${name}. Let's practise together.`, { rate: settings.rate });
+  } else render();
 });
 
 // ---------------------------------------------------------------- offline shell
@@ -381,6 +456,7 @@ if ("serviceWorker" in navigator) {
   let reloaded = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (updateReady && !reloaded) { reloaded = true; location.reload(); } });
 }
+onVoicesChanged(() => { if (screen === "settings") render(); });
 for (const ev of ["online", "offline"]) window.addEventListener(ev, () => { if (screen !== "practice") render(); });
 
 render();
