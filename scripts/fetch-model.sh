@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SEEDSED — fetch-model.sh
 # Purpose: download the Vosk small US-English model (Apache-2.0), verify its checksum,
-#          repack it as the .tar.gz that vosk-browser loads, and extract its vocabulary for tests.
-# Boundaries: writes only app/model/ and build/; never edits source. Model weights stay out of tracked source.
+#          repack it as the .tar.gz that vosk-browser loads, and extract its vocabulary (for tests and
+#          for the app's "My words" check, as app/data/vocab.txt).
+# Boundaries: writes only app/model/, app/data/ and build/; never edits source. Model weights stay out of tracked source.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,6 +15,7 @@ WORK="$ROOT/build/model-work"
 
 if [[ -f "$OUT" && -f "$ROOT/build/vocab.txt" ]]; then
   echo "Model already present: $OUT"
+  mkdir -p "$ROOT/app/data" && grep -v '^[#<!]' "$ROOT/build/vocab.txt" > "$ROOT/app/data/vocab.txt"
   exit 0
 fi
 
@@ -27,4 +29,5 @@ tar -C "$WORK" -czf "$OUT.tmp" "$NAME"
 mv "$OUT.tmp" "$OUT"
 python3 -I "$ROOT/scripts/extract_vocab.py" "$WORK/$NAME/graph/Gr.fst" "$ROOT/build/vocab.txt"
 rm -rf "$WORK"
-ls -l "$OUT"
+mkdir -p "$ROOT/app/data" && grep -v '^[#<!]' "$ROOT/build/vocab.txt" > "$ROOT/app/data/vocab.txt"
+ls -l "$OUT" "$ROOT/app/data/vocab.txt"

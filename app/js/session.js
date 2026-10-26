@@ -4,8 +4,9 @@
 //          the next item comes, after the last step the item is set aside and returns once later.
 //          Coach nudge: a success that needed a tip earns one bonus "now just you" try; whatever
 //          happens on that try, the session moves on (a gentle push, never a penalty).
-// Input:  stage, progress (for mastery), options { length, rng }.
-// Output: current() -> { item, step, index, total } | null; submit(ok) advances; summary().
+// Input:  a stage (one-stage practice) or a list of { stage, item } entries (the daily plan),
+//         progress (for mastery), options { length, rng }.
+// Output: current() -> { item, stage, step, solo, index, total } | null; submit(ok) advances; summary().
 // Boundaries: no audio, no storage writes, no wording. Pure state machine, fully testable.
 
 export const MAX_STEPS = 3;
@@ -35,20 +36,24 @@ export function planItems(stage, progress, length, rng = Math.random) {
   return out.slice(0, Math.max(1, length));
 }
 
+const keyOf = e => `${e.stage.id}/${e.item.id}`;
+
 export class Session {
-  constructor(stage, progress, { length = 12, rng = Math.random } = {}) {
-    this.stage = stage;
-    this.queue = planItems(stage, progress, length, rng);
+  constructor(stageOrEntries, progress, { length = 12, rng = Math.random } = {}) {
+    const entries = Array.isArray(stageOrEntries);
+    this.stage = entries ? null : stageOrEntries; // null for a mixed (daily) session
+    this.queue = entries ? stageOrEntries.slice() : planItems(stageOrEntries, progress, length, rng).map(item => ({ stage: stageOrEntries, item }));
     this.total = this.queue.length;
     this.done = 0;
     this.step = 0;
-    this.results = []; // { itemId, ok, step }
+    this.results = []; // { key, text, ok, step }
     this.retried = new Set();
   }
 
   current() {
     if (!this.queue.length) return null;
-    return { item: this.queue[0], step: this.step, solo: !!this.solo, index: this.done, total: this.total };
+    const { item, stage } = this.queue[0];
+    return { item, stage, step: this.step, solo: !!this.solo, index: this.done, total: this.total };
   }
 
   get finished() {
@@ -75,7 +80,7 @@ export class Session {
       return this.#advance();
     }
     if (ok) {
-      this.results.push({ itemId: cur.item.id, ok: true, step: this.step });
+      this.results.push({ key: keyOf(this.queue[0]), text: cur.item.text, ok: true, step: this.step });
       if (this.step > 0) {
         this.solo = true;
         this.step = 0;
@@ -87,11 +92,12 @@ export class Session {
       this.step++;
       return "retry";
     }
-    this.results.push({ itemId: cur.item.id, ok: false, step: this.step });
-    if (!this.retried.has(cur.item.id) && this.queue.length > 2) {
+    const entry = this.queue[0];
+    this.results.push({ key: keyOf(entry), text: cur.item.text, ok: false, step: this.step });
+    if (!this.retried.has(keyOf(entry)) && this.queue.length > 2) {
       // Come back to it once, a few items later, from the start of the ladder.
-      this.retried.add(cur.item.id);
-      this.queue.splice(Math.min(3, this.queue.length), 0, cur.item);
+      this.retried.add(keyOf(entry));
+      this.queue.splice(Math.min(3, this.queue.length), 0, entry);
       this.total++;
     }
     return this.#advance();
@@ -130,9 +136,9 @@ export class Session {
   summary() {
     const firstTry = this.results.filter(r => r.ok && r.step === 0).length;
     const withHelp = this.results.filter(r => r.ok && r.step > 0).length;
-    // "Not yet" = never said successfully this session, even after coming back to it.
-    const succeeded = new Set(this.results.filter(r => r.ok).map(r => r.itemId));
-    const notYet = this.results.filter(r => !r.ok && !succeeded.has(r.itemId)).map(r => r.itemId);
+    // "Not yet" = never said successfully this session, even after coming back to it (as texts).
+    const succeeded = new Set(this.results.filter(r => r.ok).map(r => r.key));
+    const notYet = this.results.filter(r => !r.ok && !succeeded.has(r.key)).map(r => r.text);
     return { firstTry, withHelp, notYet: [...new Set(notYet)], correct: firstTry + withHelp, total: this.results.length };
   }
 }

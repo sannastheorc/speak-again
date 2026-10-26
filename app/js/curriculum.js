@@ -1,7 +1,8 @@
 // SEEDSED — curriculum.js
 // Purpose: WHAT to practise. Ordered stages from voice warm-up to phrases, each item with the words
 //          the recognizer should accept and a plain-language mouth-placement tip.
-// Boundaries: pure data plus lookups. Does not judge attempts (assess.js), track mastery (progress.js)
+// Boundaries: pure data plus lookups. The large generated word bank lives in wordbank.js.
+// Does not judge attempts (assess.js), track mastery (progress.js)
 //             or choose order (session.js). Every word in `accept` must exist in the model vocabulary
 //             (enforced by tests/curriculum.test.mjs).
 
@@ -39,6 +40,8 @@ export const TIPS = {
   phrase: "Say it slowly, one word at a time, then try it smoothly."
 };
 
+import { WORDBANK_STAGES } from "./wordbank.js";
+
 const it = (text, accept, tip, extra = {}) => ({
   id: text.toLowerCase().replace(/[^a-z]+/g, "-").replace(/(^-|-$)/g, ""),
   text,
@@ -48,7 +51,10 @@ const it = (text, accept, tip, extra = {}) => ({
   ...extra
 });
 
-export const STAGES = [
+// A phrase or sentence item: accepted when the whole thing is heard.
+const p = text => it(text, [text.toLowerCase().replace(/[^a-z' ]+/g, "").replace(/\s+/g, " ").trim()], "phrase");
+
+const HAND_STAGES = [
   {
     id: "voice", title: "Warm up your voice", kind: "voice",
     goal: "Turn your voice on and hold a steady sound. The bar fills while I hear you.",
@@ -134,7 +140,7 @@ export const STAGES = [
     items: [
       it("water", ["water"], "beats"), it("hello", ["hello"], "beats"), it("coffee", ["coffee"], "beats"), it("baby", ["baby"], "beats"),
       it("table", ["table"], "beats"), it("window", ["window"], "beats"), it("yellow", ["yellow"], "beats"), it("happy", ["happy"], "beats"),
-      it("pillow", ["pillow"], "beats"), it("money", ["money"], "beats"), it("doctor", ["doctor"], "beats"), it("button", ["button"], "beats")
+      it("pillow", ["pillow"], "beats"), it("money", ["money"], "beats"), it("garden", ["garden"], "beats"), it("button", ["button"], "beats")
     ]
   },
   {
@@ -161,7 +167,7 @@ export const STAGES = [
     goal: "Three or more beats. Say it in beats first, then smoothly.",
     items: [
       it("banana", ["banana"], "beats", { say: "ba-na-na" }), it("tomato", ["tomato"], "beats"), it("potato", ["potato"], "beats"),
-      it("telephone", ["telephone"], "beats"), it("computer", ["computer"], "beats"), it("hospital", ["hospital"], "beats"),
+      it("telephone", ["telephone"], "beats"), it("computer", ["computer"], "beats"), it("chocolate", ["chocolate"], "beats"),
       it("elephant", ["elephant"], "beats"), it("umbrella", ["umbrella"], "beats"), it("family", ["family"], "beats"),
       it("medicine", ["medicine"], "beats")
     ]
@@ -173,10 +179,54 @@ export const STAGES = [
       it("thank you", ["thank you"], "phrase"), it("good morning", ["good morning"], "phrase"), it("good night", ["good night"], "phrase"),
       it("I love you", ["i love you"], "phrase"), it("how are you", ["how are you"], "phrase"), it("I am fine", ["i am fine", "i'm fine"], "phrase"),
       it("see you later", ["see you later"], "phrase"), it("I need help", ["i need help"], "phrase"), it("a glass of water", ["a glass of water", "glass of water"], "phrase"),
-      it("yes please", ["yes please"], "phrase"), it("no thank you", ["no thank you"], "phrase")
+      it("yes please", ["yes please"], "phrase"), it("no thank you", ["no thank you"], "phrase"),
+      ...[
+        "excuse me", "hello there", "good afternoon", "good evening", "nice to see you", "take care", "see you soon",
+        "come in", "sit down", "hold on", "wait a minute", "not right now", "maybe later", "me too", "that's right",
+        "of course", "all right", "well done", "good job", "I like it", "I want that", "come here", "let's go",
+        "what time is it", "where are you", "I'm hungry", "I'm tired", "I'm cold", "I'm happy", "say it again"
+      ].map(p)
     ]
+  },
+  {
+    id: "sentences", title: "Everyday sentences", kind: "speech",
+    goal: "Whole sentences for real life. Slowly, one word at a time, then smoothly.",
+    items: [
+      "I would like a cup of coffee", "Can I have some water please", "What is for dinner", "I want to go outside",
+      "The weather is nice today", "It is cold outside", "Let's go for a walk", "Turn on the light please",
+      "Turn off the TV please", "Where is my phone", "Can you help me please", "I need to rest for a minute",
+      "Thank you for your help", "I love my family", "How was your day", "I had a good day",
+      "Can you call my son", "Can you call my daughter", "Let's eat lunch", "I want a sandwich",
+      "Please pass the salt", "I would like some more", "That was very good", "I am ready to go",
+      "Let's watch a movie", "What are you doing", "I will see you tomorrow", "Have a good night",
+      "Good morning to you", "Open the door please", "Close the window please", "Where are my glasses",
+      "I need my keys", "Let's go to the store", "I want to read a book", "Can we go for a drive",
+      "The dog wants to go out", "Please feed the cat", "It is time for bed", "I slept well last night",
+      "What day is it today", "I like this song", "Can you turn it up", "Can you turn it down",
+      "Please speak slowly", "Give me a minute please", "I know what I want to say", "Let me try again",
+      "I am doing my best", "Every day gets better", "I can do this", "One more time",
+      "Happy birthday to you", "Merry Christmas", "Happy new year", "I am proud of you",
+      "See you later alligator", "Nice to meet you", "My name is", "I live here"
+    ].map(p)
   }
 ];
+
+// Order of practice, from easiest to hardest. Hand-written stages first, then the generated word
+// bank by sound, then pairs, blends, longer words, phrases and sentences.
+const ORDER = [
+  "voice", "alphabet", "lips", "tip", "back", "lipwords", "teethwords", "tipwords", "backwords",
+  "short", "beats", "hisswords", "shwords", "thwords", "rwords", "hywords", "harder", "pairs",
+  "blends", "moreblends", "twobeat", "long", "longer", "phrases", "sentences"
+];
+
+const SOUND_TIPS = new Set(["m", "b", "p", "w", "f", "v", "t", "d", "n", "l", "s", "z", "sh", "ch", "j", "th", "r", "y", "h", "k", "g"]);
+const withSounds = item => ({ say: item.text, ...item, sounds: item.sounds || (SOUND_TIPS.has(item.tip) ? [item.tip] : []) });
+
+export const STAGES = ORDER.map(id => {
+  const s = HAND_STAGES.find(x => x.id === id) || WORDBANK_STAGES.find(x => x.id === id);
+  if (!s) throw new Error(`Unknown stage ${id}`);
+  return { ...s, items: s.items.map(withSounds) };
+});
 
 export function getStage(id) {
   return STAGES.find(s => s.id === id) || null;

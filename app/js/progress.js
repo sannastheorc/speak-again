@@ -1,12 +1,16 @@
 // SEEDSED — progress.js
 // Purpose: REMEMBER practice and decide mastery. Owns the stored record of attempts and sessions,
-//          and the rules for "mastered item", "completed stage" and "recommended stage".
+//          and the rules for "mastered item", "completed stage", "recommended stage", the spaced
+//          review schedule (when a learned word is due again) and per-sound success rates.
 // Input:  attempts { stageId, itemId, ok, step, by } and finished sessions.
 // Output: stats per item/stage; saved after every attempt so nothing is lost on close or crash.
 // Boundaries: does not pick items (session.js) or judge attempts (assess.js). Storage is injected
 //             (localStorage in the app, memory in tests); a failed save never throws into the UI.
 
 export const MASTERY = Object.freeze({ window: 4, needed: 3, stageShare: 0.8 });
+// Days until a learned word comes back for review; each good review moves one step along.
+export const REVIEW_DAYS = Object.freeze([1, 2, 4, 7, 14, 30, 60]);
+const DAY = 24 * 60 * 60 * 1000;
 const KEY = "speak-again/progress";
 const VERSION = 1;
 const KEEP_PER_ITEM = 20;
@@ -18,7 +22,7 @@ export function memoryStorage() {
 }
 
 function empty() {
-  return { version: VERSION, attempts: {}, sessions: [] };
+  return { version: VERSION, attempts: {}, sessions: [], schedule: {} };
 }
 
 export class Progress {
@@ -35,6 +39,7 @@ export class Progress {
       if (!raw) return empty();
       const d = JSON.parse(raw);
       if (!d || d.version !== VERSION || typeof d.attempts !== "object" || !Array.isArray(d.sessions)) return empty();
+      d.schedule ||= {}; // added after 0.2.0; older records simply have no reviews yet
       return d;
     } catch {
       return empty();
@@ -59,7 +64,52 @@ export class Progress {
     const list = (this.data.attempts[k] ||= []);
     list.push({ t: this.now(), ok: !!ok, step, by });
     if (list.length > KEEP_PER_ITEM) list.splice(0, list.length - KEEP_PER_ITEM);
+    this.#schedule(k, ok);
     this.#save();
+  }
+
+  // Spaced review. A word enters the schedule when first mastered (due tomorrow). A good try on or
+  // after its due date moves it to the next, longer gap; a miss brings it back tomorrow, gently.
+  #schedule(k, ok) {
+    const now = this.now();
+    const s = this.data.schedule[k];
+    const [stageId, itemId] = k.split("/");
+    if (!s) {
+      if (this.itemStats(stageId, itemId).mastered) this.data.schedule[k] = { level: 0, due: now + REVIEW_DAYS[0] * DAY };
+      return;
+    }
+    if (!ok) Object.assign(s, { level: 0, due: now + REVIEW_DAYS[0] * DAY });
+    else if (now >= s.due) {
+      s.level = Math.min(s.level + 1, REVIEW_DAYS.length - 1);
+      s.due = now + REVIEW_DAYS[s.level] * DAY;
+    }
+  }
+
+  // Learned words whose review is due, most overdue first, as { stage, item } entries.
+  dueEntries(stages) {
+    const now = this.now();
+    const out = [];
+    for (const stage of stages) for (const item of stage.items) {
+      const s = this.data.schedule[Progress.key(stage.id, item.id)];
+      if (s && s.due <= now) out.push({ stage, item, due: s.due });
+    }
+    return out.sort((a, b) => a.due - b.due).map(({ stage, item }) => ({ stage, item }));
+  }
+
+  // Success rate per sound over each item's last few tries: { sound: { tries, ok, rate } }.
+  soundStats(stages) {
+    const out = {};
+    for (const stage of stages) for (const item of stage.items) {
+      const list = (this.data.attempts[Progress.key(stage.id, item.id)] || []).slice(-MASTERY.window);
+      if (!list.length) continue;
+      for (const s of item.sounds || []) {
+        const o = (out[s] ||= { tries: 0, ok: 0, rate: 0 });
+        o.tries += list.length;
+        o.ok += list.filter(a => a.ok).length;
+        o.rate = o.ok / o.tries;
+      }
+    }
+    return out;
   }
 
   // A helper overrides the recognizer's last verdict for this item ("He got it").
@@ -67,6 +117,7 @@ export class Progress {
     const list = this.data.attempts[Progress.key(stageId, itemId)];
     if (!list || !list.length) return false;
     Object.assign(list[list.length - 1], { ok: !!ok, by: "helper" });
+    this.#schedule(Progress.key(stageId, itemId), ok);
     this.#save();
     return true;
   }

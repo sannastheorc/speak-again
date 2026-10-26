@@ -27,6 +27,22 @@ but iPad doesn't download them until you ask:
 
 While you're in Settings, **Voice speed › Slow** often feels gentler.
 
+## Everyday use
+
+He taps **Start today's practice**. That's it. Each day it builds about 10 minutes of practice:
+a word he knows to start, new words, words due for review, extra work on his hardest sounds, and a
+couple of his own words. If he wants a particular stage, **Choose a stage** is on the home screen.
+
+## Helper tools (the "Helper" button)
+
+- **His words:** type names of family and friends, his street, his dog, foods he likes, things he
+  likes to say. They join his daily practice. If the app's listener doesn't know a word (often names),
+  it says so, and he or you decide whether he said it.
+- **Record your voice:** tap **● Record** next to a word, say it clearly, then pause. From then on the
+  app plays *your* voice for that word instead of the computer's. A familiar voice helps. Start with
+  his own words and the stage he's on.
+- **Settings:** name, computer voice and speed, and the other options.
+
 ## His name
 
 The first time it opens, Speak Again asks for his first name. It's optional, and you can type it
@@ -41,7 +57,7 @@ never interrupted by an update.
 
 ## Things that would erase his progress
 
-Progress is saved only on that tablet. These would erase it:
+Progress, his words and your recordings are saved only on that tablet. These would erase them:
 - deleting the Speak Again icon from the Home Screen;
 - Settings › Apps › Safari › **Clear History and Website Data**;
 - the in-app Settings › **Erase progress**.

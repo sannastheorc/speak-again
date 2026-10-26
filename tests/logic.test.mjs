@@ -137,9 +137,9 @@ test("session: preview always agrees with submit and changes nothing", () => {
     const s = new Session(lips, new Progress(memoryStorage()), { length: 3, rng: seq() });
     for (const ok of pattern) {
       if (s.finished) break;
-      const before = JSON.stringify([s.queue.map(i => i.id), s.step, s.total]);
+      const before = JSON.stringify([s.queue.map(e => e.item.id), s.step, s.total]);
       const p = s.preview(ok);
-      assert.equal(JSON.stringify([s.queue.map(i => i.id), s.step, s.total]), before);
+      assert.equal(JSON.stringify([s.queue.map(e => e.item.id), s.step, s.total]), before);
       assert.equal(s.submit(ok), p);
     }
   }
@@ -160,9 +160,9 @@ test("session: opens with one known word, then unmastered items in curriculum or
   const p = new Progress(memoryStorage());
   for (let n = 0; n < 3; n++) p.recordAttempt({ stageId: "lips", itemId: "me", ok: true });
   const s = new Session(lips, p, { length: 4, rng: seq() });
-  assert.deepEqual(s.queue.map(i => i.id), ["me", "my", "moo", "may"]);
+  assert.deepEqual(s.queue.map(e => e.item.id), ["me", "my", "moo", "may"]);
   const fresh = new Session(lips, new Progress(memoryStorage()), { length: 3, rng: seq() });
-  assert.deepEqual(fresh.queue.map(i => i.id), ["me", "my", "moo"], "nothing known yet: plain curriculum order");
+  assert.deepEqual(fresh.queue.map(e => e.item.id), ["me", "my", "moo"], "nothing known yet: plain curriculum order");
 });
 
 test("session: offers a break after 3 missed words in a row, once per streak", () => {

@@ -2,3 +2,4 @@ build/
 app/model/
 node_modules/
 .claude/
+app/data/

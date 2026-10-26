@@ -20,10 +20,30 @@ test("every item has text, a known tip and a judging rule", () => {
   }
 });
 
-test("stages run from voice warm-up through the alphabet to phrases", () => {
+test("stages run from voice warm-up through the alphabet to phrases and sentences", () => {
   assert.deepEqual(STAGES.slice(0, 2).map(s => s.id), ["voice", "alphabet"]);
-  assert.equal(STAGES.at(-1).id, "phrases");
+  assert.deepEqual(STAGES.slice(-2).map(s => s.id), ["phrases", "sentences"]);
   assert.equal(getStage("alphabet").items.length, 26);
+});
+
+test("thorough: over 1000 practice items, every item tagged with its sounds where it has one", () => {
+  const items = STAGES.flatMap(s => s.items);
+  assert.ok(items.length >= 1000, `only ${items.length}`);
+  for (const s of STAGES) for (const i of s.items) {
+    assert.ok(Array.isArray(i.sounds), `${s.id}/${i.id}`);
+    if (["lipwords", "tipwords", "backwords", "pairs"].includes(s.id)) assert.ok(i.sounds.length, `${s.id}/${i.id} has no sound tag`);
+  }
+});
+
+test("gentle: no emotionally heavy or unkind words anywhere in practice", () => {
+  const heavy = /\b(stroke|sick|pain|hurt|die|died|dead|death|kill|weak|cancer|disease|disabled|mute|dumb|stupid|fail\w*|wrong|lose|lost|broken|alone|hate|ugly|fat|hospital|doctor|patient|damage|worse|worst|bad|sad|sorry|problem|trouble|shoot|gun|war|blood)\b/i;
+  const hits = STAGES.flatMap(s => s.items.filter(i => heavy.test(i.text)).map(i => `${s.id}: ${i.text}`));
+  assert.deepEqual(hits, []);
+});
+
+test("pairs: each word's partner is in its listen list, so the contrast is really checked", () => {
+  const pairs = getStage("pairs");
+  for (const i of pairs.items) assert.ok(listenPhrases(pairs, i).includes(i.partner), `${i.text} vs ${i.partner}`);
 });
 
 test("listen list includes the target and same-group neighbours only", () => {
