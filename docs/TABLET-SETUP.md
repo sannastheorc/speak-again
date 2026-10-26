@@ -51,9 +51,10 @@ Settings › Name. There is no account and no password.
 
 ## Getting updates
 
-When a new version is published, the next time the app opens with internet it fetches the update in
-the background. A banner then says **"A new version is ready"**. Tap **Update now**. Practice is
-never interrupted by an update.
+Updates arrive by themselves whenever the tablet has internet. If the app was closed, the next
+time it opens it simply is the new version. If it was open at the time, a banner says
+**"A new version is ready"**. Tap **Update now** when convenient. Practice is never interrupted, and
+his progress, his words and your recordings are kept.
 
 ## Things that would erase his progress
 
