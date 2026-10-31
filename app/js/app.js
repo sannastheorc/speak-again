@@ -99,7 +99,7 @@ function viewWelcome() {
 }
 
 function viewHome() {
-  const days = progress.practiceDays().map(d => `<div class="day${d.practised ? " on" : ""}"><i></i>${d.date.toLocaleDateString(undefined, { weekday: "narrow" })}</div>`).join("");
+  const days = progress.practiceDays().map(d => `<div class="day${d.practised ? " on" : ""}"><i></i>${d.date.toLocaleDateString("en-US", { weekday: "narrow" })}</div>`).join("");
   const practisedDays = progress.practiceDays().filter(d => d.practised).length;
   const today = progress.practiceDays().at(-1).practised;
   const focus = progress.recommendedStage(STAGES);
