@@ -13,8 +13,8 @@ import { assess, OUTCOMES } from "./assess.js";
 import { feedback, withName, STEP_PROMPTS, BREAK_OFFER, COACH } from "./feedback.js";
 import { Progress } from "./progress.js";
 import { Session } from "./session.js";
-import { buildDailyPlan, PLAN } from "./planner.js";
-import { makeItem, myStage, loadMyWords, saveMyWords, loadVocab, MY_STAGE_ID, MAX_WORDS } from "./mywords.js";
+import { buildDailyPlan, planMinutes } from "./planner.js";
+import { makeItem, myStage, loadMyWords, saveMyWords, loadVocab, alreadyListed, MY_STAGE_ID, MAX_WORDS } from "./mywords.js";
 import { VoiceBank } from "./voicebank.js";
 import { Mic } from "./audio.js";
 import { Recognizer } from "./recognizer.js";
@@ -103,13 +103,14 @@ function viewHome() {
   const practisedDays = progress.practiceDays().filter(d => d.practised).length;
   const today = progress.practiceDays().at(-1).practised;
   const focus = progress.recommendedStage(STAGES);
+  const planned = todaysPlan().length;  // the card tells the truth: the first day's voice warm-up is 5, not 15
   return header(`<button class="quiet" data-act="go" data-to="helper">Helper</button>`) +
     (settings.name ? `<h2>Hi, ${esc(settings.name)}!</h2>` : "") +
     (updateReady ? `<div class="banner"><span>A new version is ready.</span><button data-act="update">Update now</button></div>` : "") +
     (recognizer.state === "ready" ? "" : statusCard()) +
     `<button class="next daily" data-act="daily">
       <span class="eyebrow">${today ? "Ready for more?" : "Today"}</span>
-      <h2>Start today's practice</h2><span>About 10 minutes · ${PLAN.length} words · now working on ${esc(focus.title)}</span>
+      <h2>Start today's practice</h2><span>About ${planMinutes(planned)} ${planMinutes(planned) === 1 ? "minute" : "minutes"} · ${planned} ${planned === 1 ? "word" : "words"} · now working on ${esc(focus.title)}</span>
     </button>
     <section class="card"><div class="status"><div><div><h3>This week</h3><p class="muted">Practised on ${practisedDays} of the last 7 days. A little every day works best.</p></div></div><div class="week">${days}</div></div></section>
     <div class="row"><button data-act="go" data-to="stages">Choose a stage</button>${myWords.length ? `<button data-act="start" data-stage="${MY_STAGE_ID}">My words</button>` : ""}</div>
@@ -311,10 +312,14 @@ function startPractice(stageId) {
   begin(new Session(stage, progress, { length: settings.length }), stage);
 }
 
+function todaysPlan() {
+  const extra = myWords.map(item => ({ stage: mine(), item }));
+  return buildDailyPlan({ stages: STAGES, progress, extra });
+}
+
 function startDaily() {
   mic.unlock();
-  const extra = myWords.map(item => ({ stage: mine(), item }));
-  begin(new Session(buildDailyPlan({ stages: STAGES, progress, extra }), progress), null);
+  begin(new Session(todaysPlan(), progress), null);
 }
 
 async function presentStep() {
@@ -499,6 +504,7 @@ async function addWord(text) {
   const vocab = await loadVocab();
   const item = makeItem(text, vocab, new Set(myWords.map(w => w.id)));
   if (!item) return;
+  if (alreadyListed(myWords, text)) { wordNote = `"${item.text}" is already in his words.`; return render(); }
   if (myWords.length >= MAX_WORDS) { wordNote = `You can add up to ${MAX_WORDS} words.`; return render(); }
   myWords = [...myWords, item];
   saveMyWords(storage, myWords);

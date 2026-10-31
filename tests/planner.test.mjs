@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Progress, memoryStorage, REVIEW_DAYS } from "../app/js/progress.js";
-import { buildDailyPlan, PLAN } from "../app/js/planner.js";
+import { buildDailyPlan, PLAN, planMinutes } from "../app/js/planner.js";
 import { STAGES, getStage } from "../app/js/curriculum.js";
 
 const DAY = 864e5;
@@ -100,4 +100,14 @@ test("plan: when everything is learned it still fills a session with review", ()
   const plan = buildDailyPlan({ stages: small, progress: p, length: 10, rng: seq() });
   assert.equal(plan.length, 10);
   assert.equal(new Set(keys(plan)).size, 10);
+});
+
+test("the home card's time matches the plan: 15 words about 10 minutes, the 5 voice warm-ups about 3", () => {
+  // Hands-on pass 2026-10-31: the card said "About 10 minutes · 15 words" and the session was "1 of 5".
+  assert.equal(planMinutes(PLAN.length), 10);
+  const fresh = new Progress(memoryStorage(), clock());
+  const plan = buildDailyPlan({ stages: STAGES, progress: fresh, rng: seq() });
+  assert.equal(plan.length, STAGES[0].items.length, "first day is the voice warm-up on its own");
+  assert.equal(planMinutes(plan.length), 3);
+  assert.equal(planMinutes(1), 1);
 });

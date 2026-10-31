@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { makeItem, myStage, loadMyWords, saveMyWords, firstSound, normaliseText } from "../app/js/mywords.js";
+import { makeItem, myStage, loadMyWords, saveMyWords, firstSound, normaliseText, alreadyListed } from "../app/js/mywords.js";
 import { downsample, toInt16, toFloat32, keyFor, STORE_RATE } from "../app/js/voicebank.js";
 import { memoryStorage } from "../app/js/progress.js";
 import { assess, OUTCOMES } from "../app/js/assess.js";
@@ -60,4 +60,14 @@ test("voice bank: recordings are stored at 16 kHz and round-trip faithfully", ()
   assert.deepEqual(Array.from(toInt16(Float32Array.from([2, -2]))), [32767, -32768], "clipped, not wrapped");
   assert.equal(downsample(Float32Array.from([1, 2]), 8000).length, 2, "never upsamples");
   assert.equal(keyFor("Thank you!"), keyFor("thank you"), "one recording per word, any stage");
+});
+
+test("my words: a word already in his list is noticed, whatever its capitals or spaces", () => {
+  // Hands-on pass 2026-10-31: adding "Brenda" twice listed her twice.
+  const list = [makeItem("Brenda", vocab), makeItem("my truck", vocab)];
+  assert.equal(alreadyListed(list, "brenda"), true);
+  assert.equal(alreadyListed(list, "  My   Truck "), true);
+  assert.equal(alreadyListed(list, "Brendan"), false);
+  assert.equal(alreadyListed(list, "   "), false);
+  assert.equal(alreadyListed([], "Brenda"), false);
 });

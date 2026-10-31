@@ -12,6 +12,9 @@
 
 export const PLAN = Object.freeze({ length: 15, reviewShare: 0.3, weakShare: 0.2, mine: 2, weakBelow: 0.6, weakMinTries: 4 });
 
+// About how long a plan of [count] items takes: the full 15 is about 10 minutes, never shown as less than 1.
+export function planMinutes(count) { return Math.max(1, Math.round(count * 10 / PLAN.length)); }
+
 const key = e => `${e.stage.id}/${e.item.id}`;
 
 function shuffle(list, rng) {

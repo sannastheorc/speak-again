@@ -40,6 +40,12 @@ export function makeItem(text, vocab, takenIds = new Set()) {
   };
 }
 
+// Is [text] already one of his words? Capitals, spaces and punctuation don't make a new word.
+export function alreadyListed(items, text) {
+  const norm = normaliseText(text);
+  return Boolean(norm) && items.some(i => normaliseText(i.text) === norm);
+}
+
 export function myStage(items) {
   return {
     id: MY_STAGE_ID, title: "My words", kind: "speech",
