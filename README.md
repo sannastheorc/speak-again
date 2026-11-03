@@ -11,10 +11,10 @@ encourages gently, coaches tongue and lip placement, and can show a camera mirro
 
 ## Status (2026-11-02)
 
-Candidate version 0.4.0. He has started using the published version on his tablet (reported 2026-11-02). The new
-stages have not been tried on an iPad or with his voice.
+Version 0.4.0 is live. He has been using the app on his tablet (reported 2026-11-02). The new stages have not
+been tried on an iPad or with his voice, and they haven't had independent review.
 
-Version 0.4.0 (branch `next-stages`, not yet published) adds 6 stages and 239 items after sentences:
+Version 0.4.0 (published 2026-11-02) adds 6 stages and 239 items after sentences:
 numbers/days/months, finish the phrase, name the picture, choose and answer, everyday conversations,
 and free talk. Total: 1,318 items in 31 stages.
 Version 0.3.0 added 1,079 practice items in 25 stages, the one-button daily plan with spaced review
