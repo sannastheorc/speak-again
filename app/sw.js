@@ -5,7 +5,7 @@
 //             (caching it twice would double the storage). A new version waits until the person taps
 //             "Update now", so practice is never interrupted by a reload.
 
-const VERSION = "speak-again-v7";
+const VERSION = "speak-again-v8";
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/app.js", "js/curriculum.js", "js/assess.js", "js/feedback.js", "js/progress.js", "js/session.js",
@@ -22,7 +22,7 @@ self.addEventListener("install", e => {
 
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== VERSION) await caches.delete(k);
+    for (const k of await caches.keys()) if (k.startsWith("speak-again-") && k !== VERSION) await caches.delete(k); // other apps share this web address
     await self.clients.claim();
   })());
 });

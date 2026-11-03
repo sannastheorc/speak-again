@@ -11,9 +11,10 @@ encourages gently, coaches tongue and lip placement, and can show a camera mirro
 
 ## Status (2026-11-02)
 
-Version 0.4.1 is live. He has been using the app on his tablet (reported 2026-11-02). The new stages have not
+Version 0.4.2 is live. He has been using the app on his tablet (reported 2026-11-02). The new stages have not
 been tried on an iPad or with his voice, and they haven't had independent review.
 
+Version 0.4.2 stops an update from clearing another app's offline files on the same web address.
 Version 0.4.1 fixes updates that could save stale files and get stuck on an old version.
 Version 0.4.0 (published 2026-11-02) adds 6 stages and 239 items after sentences:
 numbers/days/months, finish the phrase, name the picture, choose and answer, everyday conversations,
