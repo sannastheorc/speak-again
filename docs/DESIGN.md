@@ -5,6 +5,8 @@ SEEDSED. One owner per decision. Owners connect through the contracts below; `ap
 | Module | Decides | Input → Output | Must not |
 |---|---|---|---|
 | `curriculum.js` | What to practise, in what stage order | → 25 stages, items `{id,text,say,accept,tip,sounds,group,partner,holdSec}`, `listenPhrases()` | judge, store, order within a session |
+| `nextstages.js` | Hand-written stages after sentences (239 items) | → counting, finish, naming, choices, scripts, talk | be inserted before existing stages |
+| `presentation.js` | How an item is prompted at each cue step | item, kind, step, solo → display, spoken lines, model, hints | judge, play audio |
 | `wordbank.js` | The generated word bank (854 items) | built by `scripts/build_wordbank.py` | be edited by hand |
 | `planner.js` | Today's practice | stages + progress + his words → 15 `{stage,item}` entries | change progress, judge |
 | `mywords.js` | His own words | typed text + vocabulary → items, "My words" stage | judge, play audio |
@@ -32,6 +34,15 @@ SEEDSED. One owner per decision. Owners connect through the contracts below; `ap
 - **His words:** checked against the listener's 152k-word vocabulary (`app/data/vocab.txt`); words it
   doesn't know (often names) are judged by him or the helper.
 - **Helper's voice:** if a word has a recording, it plays instead of the device voice, in every stage.
+- **New stages go at the end only:** `tests/fixtures/stages-0.3.json` locks every earlier stage's ids,
+  text and accepted answers, because progress is stored by those ids.
+- **Holding the answer back:** naming and finish hide the word until the last rung; "Give me a hint"
+  gives a real hint. Choices accept any offered answer.
+- **Partial credit:** script lines of 4+ words count when 60% of their words are heard in order. The
+  recognizer reports individual words (measured with `tests/browser/lines-check.html`). Existing
+  phrases and sentences still need every word.
+- **Free talk:** judged only by how long he speaks (`kind: "talk"`), up to 45 s, tolerating 3 s pauses.
+  Any answer moves on: no retry, no solo try, no helper button.
 - **Mastery:** 3 of the last 4 tries correct. A stage is complete at 80% of its items mastered.
   Every stage stays open; "Start here" just recommends one.
 - **Gentleness:** no negative words (enforced by a test), misses read aloud as encouragement only,

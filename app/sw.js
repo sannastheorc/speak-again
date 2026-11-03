@@ -5,12 +5,12 @@
 //             (caching it twice would double the storage). A new version waits until the person taps
 //             "Update now", so practice is never interrupted by a reload.
 
-const VERSION = "speak-again-v5";
+const VERSION = "speak-again-v6";
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/app.js", "js/curriculum.js", "js/assess.js", "js/feedback.js", "js/progress.js", "js/session.js",
   "js/audio.js", "js/recognizer.js", "js/speech.js", "js/mirror.js", "js/settings.js",
-  "js/planner.js", "js/mywords.js", "js/voicebank.js", "js/wordbank.js", "data/vocab.txt",
+  "js/nextstages.js", "js/presentation.js", "js/planner.js", "js/mywords.js", "js/voicebank.js", "js/wordbank.js", "data/vocab.txt",
   "vendor/vosk.js", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"
 ];
 

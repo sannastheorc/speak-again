@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- SEEDSED — next-check.html: runs synthetic speech through the real recognizer and judge for the new
+     stages. Synthetic speech is clear speech: this proves the plumbing, not accuracy on his voice. Dev only. -->
+<meta charset="utf-8"><title>Next stages check</title><pre id="out">running…</pre>
+<script src="../../app/vendor/vosk.js"></script>
+<script type="module">
+import { Recognizer } from "../../app/js/recognizer.js";
+import { getStage, listenPhrases } from "../../app/js/curriculum.js";
+import { assess } from "../../app/js/assess.js";
+function parseWav(buf){const v=new DataView(buf);const sampleRate=v.getUint32(24,true);let p=12;while(p<v.byteLength){const id=String.fromCharCode(v.getUint8(p),v.getUint8(p+1),v.getUint8(p+2),v.getUint8(p+3));const size=v.getUint32(p+4,true);if(id==="data"){const n=size/2,s=new Float32Array(n);for(let i=0;i<n;i++)s[i]=v.getInt16(p+8+i*2,true)/32768;return{samples:s,sampleRate}}p+=8+size+(size%2)}throw new Error("no data")}
+const r=new Recognizer("../../app/model/model.tar.gz"); await r.load();
+const find=(s,f)=>getStage(s).items.find(f);
+const line=find("scripts",i=>i.text.startsWith("I would like a coffee"));
+const cases=[
+ ["finish","salt and ___ / pepper",find("finish",i=>i.text==="pepper"),"pepper","correct"],
+ ["finish","salt and ___ / fork (a different word)",find("finish",i=>i.text==="pepper"),"fork","not-correct"],
+ ["naming","picture coffee / coffee",find("naming",i=>i.id==="coffee"),"coffee","correct"],
+ ["naming","picture coffee / tea",find("naming",i=>i.id==="coffee"),"tea","not-correct"],
+ ["choices","coffee or tea / tea",find("choices",i=>i.id==="coffee-or-tea"),"tea","correct"],
+ ["choices","coffee or tea / coffee",find("choices",i=>i.id==="coffee-or-tea"),"coffee","correct"],
+ ["counting","Sunday",find("counting",i=>i.id==="sunday"),"sunday","correct"],
+ ["scripts","whole line",line,"scriptfull","correct"],
+ ["scripts","most of the line",line,"scriptmost","correct"],
+ ["scripts","two words of the line",line,"scriptless","not-correct"],
+];
+const out=[];
+for(const [sid,label,item,wav,want] of cases){
+  const w=parseWav(await(await fetch(`../../build/tts/${wav}.wav`)).arrayBuffer());
+  const t=(await r.recognize(w,listenPhrases(getStage(sid),item))).text;
+  const a=assess(item,"speech",{voicedMs:800,transcript:t});
+  out.push({label,heard:t,outcome:a.outcome,part:a.part,pass:(a.outcome==="correct")===(want==="correct")});
+}
+window.R={passed:out.filter(x=>x.pass).length,of:out.length,out}; document.getElementById("out").textContent=JSON.stringify(window.R,null,1);
+</script>

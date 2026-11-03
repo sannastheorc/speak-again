@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- SEEDSED — lines-check.html: measures how the real recognizer treats whole, partial and different
+     spoken lines under the two listen-list styles, using synthetic speech. Dev only; not part of the app. -->
+<meta charset="utf-8"><title>Lines check</title><pre id="out">running…</pre>
+<script src="../../app/vendor/vosk.js"></script>
+<script type="module">
+import { Recognizer } from "../../app/js/recognizer.js";
+function parseWav(buf){const v=new DataView(buf);const sampleRate=v.getUint32(24,true);let p=12;while(p<v.byteLength){const id=String.fromCharCode(v.getUint8(p),v.getUint8(p+1),v.getUint8(p+2),v.getUint8(p+3));const size=v.getUint32(p+4,true);if(id==="data"){const n=size/2,s=new Float32Array(n);for(let i=0;i<n;i++)s[i]=v.getInt16(p+8+i*2,true)/32768;return{samples:s,sampleRate}}p+=8+size+(size%2)}throw new Error("no data")}
+const line="i would like a cup of coffee please", others=["can i have some water please","what is for dinner"];
+const words=[...new Set(line.split(" "))];
+const lists={ wholeLine:[line,...others], withWords:[line,...others,...words] };
+const r=new Recognizer("../../app/model/model.tar.gz"); await r.load();
+const res={};
+for(const name of ["full","partial","start","other","stan"]){
+  const wav=parseWav(await(await fetch(`../../build/tts/${name}.wav`)).arrayBuffer());
+  res[name]={};
+  for(const k of Object.keys(lists)) res[name][k]=(await r.recognize(wav,lists[k])).text;
+}
+window.R=res; document.getElementById("out").textContent=JSON.stringify(res,null,1);
+</script>

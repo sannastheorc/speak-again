@@ -65,6 +65,27 @@ From the principles of motor learning (Maas et al., AJSLP 2008, and later apraxi
   app never calls a try "wrong", lets a helper overrule it, and offers "Hear myself" playback.
   [Example: JSLHR 2024](https://pubs.asha.org/doi/10.1044/2024_JSLHR-24-00122)
 
+## 6. What comes after sentences (added 2026-11-02)
+
+Gathered from abstracts and summaries; several papers were visible only by title, so no effect sizes
+are claimed. Most of this evidence is from small studies and from aphasia, not motor speech alone.
+
+- **Script training:** practising a whole conversation, line by line, until it becomes easier. Studied
+  in chronic aphasia after stroke (Cherney et al. 2008 and 2015, computer-based), in apraxia of speech
+  (Youmans, Youmans & Hancock, AJSLP 2011; outcomes not confirmed here, title only), and recently in
+  dose and generalization trials. [Cherney 2008](https://talkbank.org/aphasia/publications/2008/Cherney08b.pdf) ·
+  [Cherney 2015](https://pubs.asha.org/doi/10.1044/2015_AJSLP-14-0162) ·
+  [Braun & Cherney 2024](https://pubs.asha.org/doi/10.1044/2024_JSLHR-24-00326)
+- **Picture naming with a cue ladder:** a long-used approach for word finding. In a direct comparison,
+  sound-based cues beat meaning-based cues for accuracy (Meteyard & Bose 2018), though meaning cues
+  sped up naming about as much in another study (Python et al. 2021). So the app gives the meaning and
+  first letter together, then the word.
+  [Meteyard & Bose](https://pubs.asha.org/doi/abs/10.1044/2017_JSLHR-L-17-0214) ·
+  [Python et al.](https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2021.747391/pdf)
+- **Not directly evidence-tested as ordered here:** the sequence (numbers → finish the phrase → naming
+  → choices → conversations → free talk) is a reasoned progression from more to less support, using
+  the common clinical idea that over-learned speech comes more easily. An SLP could reorder it for him.
+
 ## What this means for him
 
 - Dysarthria (weak or slow muscles), apraxia (trouble planning movements) and aphasia (trouble

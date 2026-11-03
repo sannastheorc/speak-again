@@ -1,7 +1,8 @@
 // SEEDSED — assess.js
 // Purpose: decide what ONE attempt was, from what the microphone measured and what the recognizer heard.
 // Input:  item (curriculum), stage kind, observation { voicedMs, longestVoicedMs, transcript }.
-// Output: { outcome, heard } where outcome is one of OUTCOMES.
+// Output: { outcome, heard, matched?, part? } where outcome is one of OUTCOMES. `matched` is the accepted
+//         answer that was heard; `part` is { said, of } when a long line earned credit for most of its words.
 // Boundaries: no wording (feedback.js), no storage (progress.js), no audio or model access.
 
 export const OUTCOMES = Object.freeze({
@@ -24,6 +25,18 @@ export function normalise(text) {
     .trim();
 }
 
+// How many of the target's words came through, in order (longest common subsequence).
+export function wordsInOrder(heard, target) {
+  const a = heard.split(" ").filter(Boolean), b = target.split(" ").filter(Boolean);
+  let row = new Array(b.length + 1).fill(0);
+  for (const w of a) {
+    const next = [0];
+    for (let j = 1; j <= b.length; j++) next[j] = w === b[j - 1] ? row[j - 1] + 1 : Math.max(row[j], next[j - 1]);
+    row = next;
+  }
+  return row[b.length];
+}
+
 function containsPhrase(heard, phrase) {
   const h = ` ${heard} `;
   return h.includes(` ${normalise(phrase)} `);
@@ -39,8 +52,19 @@ export function assess(item, kind, obs) {
     return { outcome: ok ? OUTCOMES.CORRECT : OUTCOMES.SHORT, heard: "", heldMs: held };
   }
 
+  if (kind === "talk") {
+    const ok = voicedMs >= item.talkSec * 1000 * HOLD_FRACTION;
+    return { outcome: ok ? OUTCOMES.CORRECT : OUTCOMES.SHORT, heard: "", heldMs: voicedMs, talked: true };
+  }
+
   const heard = normalise(obs.transcript);
-  if (item.accept.some(p => containsPhrase(heard, p))) return { outcome: OUTCOMES.CORRECT, heard };
+  const matched = item.accept.find(p => containsPhrase(heard, p));
+  if (matched) return { outcome: OUTCOMES.CORRECT, heard, matched };
+  if (item.partial) {
+    const target = normalise(item.accept[0]);
+    const said = wordsInOrder(heard, target), of = target.split(" ").length;
+    if (said / of >= item.partial) return { outcome: OUTCOMES.CORRECT, heard, part: { said, of } };
+  }
   if (heard) return { outcome: OUTCOMES.OTHER, heard };
   return { outcome: OUTCOMES.UNCLEAR, heard: "" };
 }

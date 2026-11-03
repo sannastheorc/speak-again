@@ -37,10 +37,14 @@ export const TIPS = {
   y: "Lift the middle of your tongue high, as if starting to say yes.",
   blend: "Go slowly. Say each sound, then slide them together.",
   beats: "Tap the table once for each beat as you say it.",
-  phrase: "Say it slowly, one word at a time, then try it smoothly."
+  phrase: "Say it slowly, one word at a time, then try it smoothly.",
+  find: "Take your time. Picture it in your mind.",
+  choose: "Pick either one. One word is plenty.",
+  talk: "There's no right answer. Start with one word, then add another."
 };
 
 import { WORDBANK_STAGES } from "./wordbank.js";
+import { NEXT_STAGES } from "./nextstages.js";
 
 const it = (text, accept, tip, extra = {}) => ({
   id: text.toLowerCase().replace(/[^a-z]+/g, "-").replace(/(^-|-$)/g, ""),
@@ -216,14 +220,16 @@ const HAND_STAGES = [
 const ORDER = [
   "voice", "alphabet", "lips", "tip", "back", "lipwords", "teethwords", "tipwords", "backwords",
   "short", "beats", "hisswords", "shwords", "thwords", "rwords", "hywords", "harder", "pairs",
-  "blends", "moreblends", "twobeat", "long", "longer", "phrases", "sentences"
+  "blends", "moreblends", "twobeat", "long", "longer", "phrases", "sentences",
+  // New stages are only ever added at the end, so his place and progress never move.
+  "counting", "finish", "naming", "choices", "scripts", "talk"
 ];
 
 const SOUND_TIPS = new Set(["m", "b", "p", "w", "f", "v", "t", "d", "n", "l", "s", "z", "sh", "ch", "j", "th", "r", "y", "h", "k", "g"]);
 const withSounds = item => ({ say: item.text, ...item, sounds: item.sounds || (SOUND_TIPS.has(item.tip) ? [item.tip] : []) });
 
 export const STAGES = ORDER.map(id => {
-  const s = HAND_STAGES.find(x => x.id === id) || WORDBANK_STAGES.find(x => x.id === id);
+  const s = HAND_STAGES.find(x => x.id === id) || WORDBANK_STAGES.find(x => x.id === id) || NEXT_STAGES.find(x => x.id === id);
   if (!s) throw new Error(`Unknown stage ${id}`);
   return { ...s, items: s.items.map(withSounds) };
 });

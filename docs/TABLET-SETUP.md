@@ -33,6 +33,13 @@ He taps **Start today's practice**. That's it. Each day it builds about 10 minut
 a word he knows to start, new words, words due for review, extra work on his hardest sounds, and a
 couple of his own words. If he wants a particular stage, **Choose a stage** is on the home screen.
 
+## The later stages
+
+After everyday sentences, the daily plan moves on to: numbers, days and months; finishing a phrase;
+naming a picture; choosing an answer; everyday conversations; and talking freely. Any of them can be
+opened early from **Choose a stage** if you think he'd enjoy it. Naming and finishing hold the word back
+so he can find it himself, and **Give me a hint** is always there.
+
 ## Helper tools (the "Helper" button)
 
 - **His words:** type names of family and friends, his street, his dog, foods he likes, things he

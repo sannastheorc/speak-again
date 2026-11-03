@@ -73,6 +73,9 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .target { align-items: center; text-align: center; padding-block: 26px; }
 .word { font-family: var(--round); font-weight: 700; font-size: clamp(3.6rem, 16vw, 8.5rem); line-height: 1.05; letter-spacing: .01em; overflow-wrap: anywhere; }
 .word.long { font-size: clamp(2.4rem, 9vw, 5rem); }
+.word.line { font-size: clamp(1.8rem, 6vw, 3.2rem); line-height: 1.2; text-wrap: balance; }
+.picture { font-size: clamp(6rem, 24vw, 11rem); line-height: 1.1; user-select: none; }
+.other { font-size: 1.05em; color: var(--muted); font-style: italic; }
 .prompt { font-size: 1.05em; color: var(--muted); }
 .tip { background: var(--accent-soft); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; text-align: left; width: 100%; }
 .tip p { font-size: 1.05em; }

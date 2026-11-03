@@ -42,11 +42,18 @@ export function feedback(result, ctx) {
   switch (result.outcome) {
     case OUTCOMES.CORRECT: {
       const h = withName(pick(PRAISE, n), ctx.name, n);
-      const detail = result.heldMs ? `You held it for ${(result.heldMs / 1000).toFixed(1)} seconds.` : `That was "${ctx.item.text}".`;
+      const detail = result.talked ? `You talked for ${Math.round(result.heldMs / 1000)} seconds.`
+        : result.heldMs ? `You held it for ${(result.heldMs / 1000).toFixed(1)} seconds.`
+        : result.part ? `I caught ${result.part.said} of the ${result.part.of} words. That counts.`
+        : ctx.item.mode === "choice" ? `You said "${result.matched || ctx.item.say}".`
+        : `That was "${ctx.item.text}".`;
       return { tone: "great", headline: h, detail, speak: h };
     }
     case OUTCOMES.SHORT: {
       const secs = ((result.heldMs || 0) / 1000).toFixed(1);
+      if (result.talked) {
+        return { tone: "try", headline: "Good, I heard you talking!", detail: "Every word counts. We'll keep building on this.", speak: "Good. Every word counts." };
+      }
       return {
         tone: "try", headline: "Good, I heard your voice!",
         detail: `You held it for ${secs} seconds. Take a big breath and keep it going until the bar is full.`,

@@ -13,6 +13,7 @@ import { assess, OUTCOMES } from "./assess.js";
 import { feedback, withName, STEP_PROMPTS, BREAK_OFFER, COACH } from "./feedback.js";
 import { Progress } from "./progress.js";
 import { Session } from "./session.js";
+import { present } from "./presentation.js";
 import { buildDailyPlan, planMinutes } from "./planner.js";
 import { makeItem, myStage, loadMyWords, saveMyWords, loadVocab, alreadyListed, MY_STAGE_ID, MAX_WORDS } from "./mywords.js";
 import { VoiceBank } from "./voicebank.js";
@@ -49,6 +50,8 @@ let recState = null;    // the recording in progress: { text, phase: "recording"
 let wordNote = "";      // last helper-screen message (word added, recording saved, ...)
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const viewOf = cur => present(cur.item, cur.stage.kind, cur.step, cur.solo, { tips: TIPS, soloPrompt: COACH.soloPrompt, stepPrompts: STEP_PROMPTS });
+const NOT_MOUTH_TIPS = new Set(["find", "choose", "talk"]); // these tips don't need the mirror
 const mine = () => myStage(myWords);
 const allStages = () => (myWords.length ? [...STAGES, mine()] : STAGES);
 const stageById = id => (id === MY_STAGE_ID ? mine() : getStage(id));
@@ -132,12 +135,14 @@ function viewStages() {
 function viewPractice() {
   const cur = P.session.current();
   const { item, stage, step, index, total } = cur;
-  const voice = stage.kind === "voice";
-  const long = item.text.length > 9;
-  const tip = TIPS[item.tip];
-  const showTip = step >= 1 || P.showTip;
+  const measured = stage.kind !== "speech"; // judged by how long he speaks, not by the words
+  const view = viewOf(cur);
+  const sizeClass = view.display.length > 24 ? " line" : view.display.length > 9 ? " long" : "";
+  const onRequest = view.askHint ?? TIPS[item.tip] ?? "";
+  const tip = view.hint || (P.showTip ? onRequest : "");
+  const mouth = !NOT_MOUTH_TIPS.has(item.tip);
   const micCls = P.phase === "listening" ? " listening" : P.phase === "thinking" ? " thinking" : "";
-  const micLabel = P.phase === "listening" ? (voice ? "Stop" : "Listening…") : P.phase === "thinking" ? "Checking…" : "Tap to speak";
+  const micLabel = P.phase === "listening" ? (measured ? "Stop" : "Listening…") : P.phase === "thinking" ? "Checking…" : "Tap to speak";
   const canTap = P.phase === "ready" || P.phase === "listening";
 
   let fb = "";
@@ -151,7 +156,7 @@ function viewPractice() {
         ${P.recording && !silent ? `<button data-act="playback">▶ Hear myself</button>` : ""}
         <button class="primary" data-act="${silent ? "again" : "continue"}">${silent ? "Try again" : nextLabel}</button>
       </div>
-      ${settings.helperButtons && !silent && !P.verdict ? `<button class="quiet helper" data-act="override">Helper: that was right</button>` : ""}
+      ${settings.helperButtons && !silent && !P.verdict && stage.kind !== "talk" ? `<button class="quiet helper" data-act="override">Helper: that was right</button>` : ""}
     </section>`;
   }
   if (P.phase === "selfcheck") {
@@ -171,16 +176,18 @@ function viewPractice() {
   return `<div class="pbar"><button class="quiet" data-act="end">✕ End</button><div class="bar" role="progressbar" aria-valuenow="${index}" aria-valuemax="${total}"><i style="width:${Math.round((index / total) * 100)}%"></i></div><span class="count">${index + 1} of ${total}</span></div>
     <section class="card target">
       <p class="eyebrow">${esc(item.group || stage.title)}</p>
-      <div class="word${long ? " long" : ""}">${esc(item.text)}</div>
+      ${view.before ? `<p class="other">${view.before.startsWith("(") ? esc(view.before) : `They say: "${esc(view.before)}"`}</p>` : ""}
+      ${view.picture ? `<div class="picture" role="img" aria-label="Picture to name">${view.picture}</div>` : ""}
+      ${view.display ? `<div class="word${sizeClass}">${esc(view.display)}</div>` : ""}
       ${item.partner ? `<p class="muted">Not "${esc(item.partner)}". Feel the difference.</p>` : ""}
-      <p class="prompt">${voice ? `Hold the sound for ${item.holdSec} seconds.` : esc(cur.solo ? COACH.soloPrompt : STEP_PROMPTS[step])}</p>
-      ${voice ? `<div class="hold" id="hold" aria-hidden="true"><i></i></div>` : ""}
-      ${showTip && tip ? `<div class="tip"><p><b>Tip:</b> ${esc(tip)}</p><div id="mirror-slot"></div>
-        <button class="quiet" data-act="mirror">${mirrorOn() ? "Hide mirror" : "Show my mouth (mirror)"}</button></div>`
-        : tip ? `<button class="quiet" data-act="tip">Show a tip</button>` : ""}
+      <p class="prompt">${esc(view.prompt)}</p>
+      ${view.showMeter ? `<div class="hold" id="hold" aria-hidden="true"><i></i></div>` : ""}
+      ${tip ? `<div class="tip"><p><b>${item.mode === "name" || item.mode === "finish" ? "Hint" : "Tip"}:</b> ${esc(tip)}</p>${mouth ? `<div id="mirror-slot"></div>
+        <button class="quiet" data-act="mirror">${mirrorOn() ? "Hide mirror" : "Show my mouth (mirror)"}</button>` : ""}</div>`
+        : onRequest ? `<button class="quiet" data-act="tip">${item.mode === "name" || item.mode === "finish" ? "Give me a hint" : "Show a tip"}</button>` : ""}
     </section>
     ${fb || `<div class="speakrow">
-      <button class="hear" data-act="hear" ${P.phase !== "ready" ? "disabled" : ""}>🔊 Hear it${step === 2 ? " slowly" : ""}</button>
+      <button class="hear" data-act="hear" ${P.phase !== "ready" ? "disabled" : ""}>🔊 ${view.hearLabel}</button>
       <button class="mic${micCls}" id="mic" data-act="mic" ${canTap ? "" : "disabled"} aria-label="${micLabel}"><span><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>${micLabel}</span></button>
     </div>
     <div class="row"><button class="quiet" data-act="skip" ${P.phase === "ready" ? "" : "disabled"}>Skip this one</button></div>`}`;
@@ -237,7 +244,7 @@ function viewMyWords() {
 
 function viewVoices() {
   const stage = stageById(voicesStage) || STAGES[1];
-  const options = allStages().filter(s => s.kind !== "voice").map(s => `<option value="${s.id}" ${s.id === stage.id ? "selected" : ""}>${esc(s.title)}</option>`).join("");
+  const options = allStages().filter(s => s.kind !== "voice" && !s.noRecord).map(s => `<option value="${s.id}" ${s.id === stage.id ? "selected" : ""}>${esc(s.title)}</option>`).join("");
   const rows = stage.items.map(i => `<li class="wordrow"><div><b>${esc(i.text)}</b></div>${recButtons(i.text)}</li>`).join("");
   return header(back("helper")) + `<h2>Record your voice</h2>
     <section class="card"><p>Tap <b>● Record</b>, say the word clearly at a relaxed pace, then pause. It stops by itself.
@@ -326,15 +333,20 @@ async function presentStep() {
   const id = ++attemptSeq;
   const { item, step } = P.session.current();
   Object.assign(P, { phase: "ready", fb: null, result: null, verdict: null, recording: null, error: null, showTip: false });
-  if (step >= 1 && settings.autoMirror && !mirrorOn() && TIPS[item.tip]) await startMirror($mirror);
+  if (step >= 1 && settings.autoMirror && !mirrorOn() && TIPS[item.tip] && !NOT_MOUTH_TIPS.has(item.tip)) await startMirror($mirror);
   if (id !== attemptSeq) return;
   render();
   if (P.greet) { P.greet = false; await speak(COACH.start(settings.name), { rate: settings.rate }); }
   if (id !== attemptSeq) return;
-  if (P.session.current().solo) return speak(COACH.soloPrompt, { rate: settings.rate });
-  if (step === 1 && TIPS[item.tip]) await speak(TIPS[item.tip], { rate: settings.rate });
-  if (id !== attemptSeq) return;
-  await playModel(item, step === 2);
+  const cur = P.session.current();
+  const view = viewOf(cur);
+  if (cur.solo) await speak(COACH.soloPrompt, { rate: settings.rate });
+  for (const line of view.say) {
+    if (id !== attemptSeq) return;
+    await speak(line, { rate: settings.rate });
+  }
+  if (id !== attemptSeq || !view.model) return;
+  await playModel(item, view.slow);
 }
 
 async function onMic() {
@@ -344,7 +356,8 @@ async function onMic() {
   cancelSpeech();
   const id = ++attemptSeq;
   const { item, stage } = P.session.current();
-  const voice = stage.kind === "voice";
+  const voice = stage.kind === "voice", talk = stage.kind === "talk";
+  const words = talk || voice ? 0 : item.accept[0].split(" ").length;
   P.phase = "listening";
   render();
 
@@ -353,11 +366,11 @@ async function onMic() {
   let recording;
   try {
     recording = await mic.record({
-      maxMs: voice ? item.holdSec * 1000 + 4000 : item.accept[0].includes(" ") ? 8000 : 5000,
-      endSilenceMs: voice ? 700 : 1200,
+      maxMs: voice ? item.holdSec * 1000 + 4000 : talk ? Math.min(45000, (item.talkSec + 15) * 1000) : words > 1 ? Math.max(8000, words * 1500 + 4000) : 5000,
+      endSilenceMs: voice ? 700 : talk ? 3000 : 1200, // no rushing: long pauses are fine while talking
       onLevel: lv => {
         if (micEl) micEl.style.setProperty("--lvl", (1 + Math.min(0.35, lv.level * 6)).toFixed(3));
-        if (holdEl) holdEl.style.width = Math.min(100, (lv.runMs / (item.holdSec * 1000)) * 100) + "%";
+        if (holdEl) holdEl.style.width = Math.min(100, talk ? (lv.voicedMs / (item.talkSec * 1000)) * 100 : (lv.runMs / (item.holdSec * 1000)) * 100) + "%";
       }
     });
   } catch (e) {
@@ -371,7 +384,7 @@ async function onMic() {
   P.recording = recording;
 
   let transcript = "";
-  if (!voice && recording.voicedMs >= 150) {
+  if (stage.kind === "speech" && recording.voicedMs >= 150) {
     if (item.selfCheck || recognizer.state !== "ready") { P.phase = "selfcheck"; render(); return; }
     P.phase = "thinking";
     render();
@@ -399,7 +412,7 @@ function showResult(result) {
   const silent = result.outcome === OUTCOMES.SILENT;
   P.result = result;
   P.verdict = silent ? null : ok;
-  if (!silent) progress.recordAttempt({ stageId: stage.id, itemId: item.id, ok, step, by: stage.kind === "voice" ? "meter" : "asr" });
+  if (!silent) progress.recordAttempt({ stageId: stage.id, itemId: item.id, ok, step, by: stage.kind === "speech" ? "asr" : "meter" });
   const lastTry = !ok && P.session.preview(false) !== "retry";
   P.fb = feedback(result, { item, tipText: TIPS[item.tip] || "", step, solo, lastTry, showHeard: settings.showHeard, name: settings.name, n: n++ });
   if (ok && !solo) coachAfterSuccess();
@@ -532,9 +545,12 @@ $app.addEventListener("click", async e => {
       return go("home");
     case "mic": return onMic();
     case "hear": {
-      const { item, step } = P.session.current();
+      const cur = P.session.current();
+      const view = viewOf(cur);
       mic.unlock();
-      return playModel(item, step === 2);
+      if (view.hearModel) return playModel(cur.item, cur.step === 2);
+      for (const line of view.hear) await speak(line, { rate: settings.rate });
+      return;
     }
     case "tip": P.showTip = true; render(); if (settings.autoMirror) { await startMirror($mirror); render(); } return;
     case "mirror": if (mirrorOn()) stopMirror($mirror); else await startMirror($mirror); return render();

@@ -9,19 +9,26 @@ encourages gently, coaches tongue and lip placement, and can show a camera mirro
 - How it's built: [docs/DESIGN.md](docs/DESIGN.md)
 - Installing on the tablet: [docs/TABLET-SETUP.md](docs/TABLET-SETUP.md)
 
-## Status (2026-10-25)
+## Status (2026-11-02)
 
-Candidate version 0.3.0. **Not yet tried on a real iPad, or with his voice.**
+Candidate version 0.4.0. He has started using the published version on his tablet (reported 2026-11-02). The new
+stages have not been tried on an iPad or with his voice.
 
-Version 0.3.0 adds 1,079 practice items in 25 stages, the one-button daily plan with spaced review
+Version 0.4.0 (branch `next-stages`, not yet published) adds 6 stages and 239 items after sentences:
+numbers/days/months, finish the phrase, name the picture, choose and answer, everyday conversations,
+and free talk. Total: 1,318 items in 31 stages.
+Version 0.3.0 added 1,079 practice items in 25 stages, the one-button daily plan with spaced review
 and weak-sound practice, his own words, and the helper's recorded voice.
 Version 0.2.0 added the coach (gentle pushes), his name, and natural-voice selection.
 
 What has been verified, in Chromium on Linux:
-- 42 unit tests pass (`npm test`), including a check that every practice word is in the model's vocabulary.
+- 60 unit tests pass (`npm test`), including a check that every practice word is in the model's vocabulary.
 - In-browser: the model loads, a known recording is transcribed exactly, and unrelated words come back as unknown.
 - The practice flow runs end to end, with a recorded clip standing in for the microphone.
 - The cue ladder, helper override and break offer all work.
+- New stages: synthetic speech through the real recognizer and judge scored 10 of 10 (`tests/browser/next-check.html`,
+  speech from `scripts/make_test_speech.sh`), and each new prompt type was driven through the real screens.
+  Synthetic speech is clear speech, so this proves the plumbing, not accuracy on his voice.
 - **Offline:** with the server stopped, the app opens, the recognizer loads from the device, and the
   voice warm-up measures a 0.9 s and a 2.6 s hold correctly.
 

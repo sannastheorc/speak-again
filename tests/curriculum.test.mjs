@@ -16,13 +16,14 @@ test("every item has text, a known tip and a judging rule", () => {
     assert.ok(i.text && i.say, `${s.id}/${i.id} text`);
     assert.ok(TIPS[i.tip], `${s.id}/${i.id} tip ${i.tip}`);
     if (s.kind === "voice") assert.ok(i.holdSec > 0, `${i.id} holdSec`);
+    else if (s.kind === "talk") assert.ok(i.talkSec > 0, `${i.id} talkSec`);
     else assert.ok(i.accept.length > 0, `${s.id}/${i.id} accept`);
   }
 });
 
-test("stages run from voice warm-up through the alphabet to phrases and sentences", () => {
+test("stages run from voice warm-up through the alphabet to phrases, sentences and beyond", () => {
   assert.deepEqual(STAGES.slice(0, 2).map(s => s.id), ["voice", "alphabet"]);
-  assert.deepEqual(STAGES.slice(-2).map(s => s.id), ["phrases", "sentences"]);
+  assert.deepEqual(STAGES.map(s => s.id).slice(23, 25), ["phrases", "sentences"]);
   assert.equal(getStage("alphabet").items.length, 26);
 });
 

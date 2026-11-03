@@ -4,6 +4,7 @@
 //          the next item comes, after the last step the item is set aside and returns once later.
 //          Coach nudge: a success that needed a tip earns one bonus "now just you" try; whatever
 //          happens on that try, the session moves on (a gentle push, never a penalty).
+//          Free talk ("talk" stages) has no right answer, so it has no ladder: any answer moves on.
 // Input:  a stage (one-stage practice) or a list of { stage, item } entries (the daily plan),
 //         progress (for mastery), options { length, rng }.
 // Output: current() -> { item, stage, step, solo, index, total } | null; submit(ok) advances; summary().
@@ -63,8 +64,9 @@ export class Session {
   // What submit(ok) would return, without changing anything (lets the UI label its button
   // while a helper can still correct the verdict).
   preview(ok) {
-    if (!this.current()) return "done";
-    if (this.solo) return this.queue.length > 1 ? "next" : "done";
+    const cur = this.current();
+    if (!cur) return "done";
+    if (this.solo || cur.stage.kind === "talk") return this.queue.length > 1 ? "next" : "done";
     if (ok && this.step > 0) return "solo";
     if (!ok && this.step + 1 < MAX_STEPS) return "retry";
     return this.queue.length > 1 ? "next" : "done";
@@ -77,6 +79,10 @@ export class Session {
     if (!cur) return "done";
     if (this.solo) {
       this.results[this.results.length - 1].soloOk = !!ok;
+      return this.#advance();
+    }
+    if (cur.stage.kind === "talk") {
+      this.results.push({ key: keyOf(this.queue[0]), text: cur.item.text, ok: !!ok, step: 0 });
       return this.#advance();
     }
     if (ok) {
