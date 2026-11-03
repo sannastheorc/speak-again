@@ -5,7 +5,7 @@
 //             (caching it twice would double the storage). A new version waits until the person taps
 //             "Update now", so practice is never interrupted by a reload.
 
-const VERSION = "speak-again-v6";
+const VERSION = "speak-again-v7";
 const SHELL = [
   "./", "index.html", "manifest.webmanifest", "css/app.css",
   "js/app.js", "js/curriculum.js", "js/assess.js", "js/feedback.js", "js/progress.js", "js/session.js",
@@ -15,7 +15,9 @@ const SHELL = [
 ];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)));
+  // cache: "reload" skips the browser's short-term file cache. Without it, a device that opened the app just
+  // before a publish saved the OLD files under the NEW version and stayed stuck on them.
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "reload" })))));
 });
 
 self.addEventListener("activate", e => {

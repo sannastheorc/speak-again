@@ -621,7 +621,7 @@ $app.addEventListener("submit", e => {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").then(reg => {
     const watch = w => w && w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) { updateReady = w; if (screen === "home") render(); } });
-    if (reg.waiting && navigator.serviceWorker.controller) updateReady = reg.waiting;
+    if (reg.waiting && navigator.serviceWorker.controller) { updateReady = reg.waiting; if (screen === "home") render(); }
     reg.addEventListener("updatefound", () => watch(reg.installing));
   }).catch(e => console.warn("Offline support unavailable:", e));
   let reloaded = false;
